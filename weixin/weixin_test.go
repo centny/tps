@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/Centny/gwf/routing"
 	"github.com/Centny/gwf/util"
-	"github.com/Centny/pay/tools"
+	"github.com/Centny/tps/tools"
 	"testing"
 )
 
@@ -20,6 +20,7 @@ func TestWeixin(t *testing.T) {
 	var wx = NewClient(
 		"https://api.mch.weixin.qq.com/pay/unifiedorder",
 		"https://api.mch.weixin.qq.com/pay/orderquery",
+		"",
 		&test_h{},
 	)
 	wx.Native.Load(

@@ -2,6 +2,7 @@ package weixin
 
 import (
 	"fmt"
+	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/util"
 	"net/url"
 	"reflect"
@@ -15,8 +16,12 @@ type Conf struct {
 	AppSecret string
 }
 
-func (c *Conf) Load(appid, mchid, key, appsecret string) {
+func (c *Conf) Load(appid, mchid, key, appsecret string) error {
+	if len(appid) < 1 || len(mchid) < 1 || len(key) < 1 || len(appsecret) < 1 {
+		return util.Err("having empty arguemts in appid/mchid/key/appsecret")
+	}
 	c.Appid, c.Mchid, c.Key, c.AppSecret = appid, mchid, key, appsecret
+	return nil
 }
 
 func (c *Conf) Md5Sign(data string) string {
@@ -51,5 +56,13 @@ func (c *Conf) Md5Verify(data, sign string) error {
 		return nil
 	} else {
 		return util.Err("md5 verify fail")
+	}
+}
+
+var ShowLog = false
+
+func slog(format string, args ...interface{}) {
+	if ShowLog {
+		log.D_(1, format, args...)
 	}
 }

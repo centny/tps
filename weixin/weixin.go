@@ -3,9 +3,13 @@ package weixin
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/routing"
 	"github.com/Centny/gwf/util"
+	"net/http"
+	"os"
+	"path/filepath"
 )
 
 type Evh interface {
@@ -16,13 +20,20 @@ type Client struct {
 	QueryOrder   string
 	Native       Conf
 	H            Evh
+	Host         string
+	Pre          string
+	Tmp          string
+	CmdF         string
 }
 
-func NewClient(unified, query string, h Evh) *Client {
+func NewClient(unified, query, host string, h Evh) *Client {
 	return &Client{
 		UnifiedOrder: unified,
 		QueryOrder:   query,
 		H:            h,
+		Host:         host,
+		Tmp:          "/tmp/weixin",
+		CmdF:         "/usr/local/bin/qrencode %v -o %v",
 	}
 }
 
@@ -35,6 +46,20 @@ func (c *Client) CreateNativeOrder(notify_url, out_trade_no, body string, total_
 	return c.CreateOrder(args, &c.Native)
 }
 
+func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, total_fee float64) (string, error) {
+	var ord, err = c.CreateNativeOrder(notify_url, out_trade_no, body, total_fee)
+	if err != nil {
+		return "", err
+	}
+	os.MkdirAll(c.Tmp, os.ModePerm)
+	var tmpf = filepath.Join(c.Tmp, "wx_"+out_trade_no+".png")
+	_, err = util.Exec2(fmt.Sprintf(c.CmdF, ord.CodeUrl, tmpf))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%v%v/qr/wx_%v.png", c.Host, c.Pre, out_trade_no), nil
+}
+
 func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
@@ -43,6 +68,7 @@ func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 		err = util.Err("Client.CreateOrder  marshal fail with error(%v)", err)
 		return nil, err
 	}
+	slog("Client.CreateOrder do create order by data:\n%v", string(bys))
 	code, res, err := util.HPostN(c.UnifiedOrder, "application/xml", bytes.NewBuffer(bys))
 	if err != nil {
 		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
@@ -133,4 +159,10 @@ func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
+}
+
+func (c *Client) Hand(pre string, mux *routing.SessionMux) {
+	c.Pre = pre
+	mux.HFunc("^"+pre+"/notify(\\?.*)?$", c.NativeNotify)
+	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
 }
