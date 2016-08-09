@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/util"
 )
 
@@ -99,5 +100,13 @@ func (c *Conf) Verify(data, sign, sign_type string) error {
 		return c.AlipayVerify(data, sign)
 	default:
 		return util.Err("unkown verify sign type(%v)", sign_type)
+	}
+}
+
+var ShowLog = false
+
+func slog(format string, args ...interface{}) {
+	if ShowLog {
+		log.D_(1, format, args...)
 	}
 }

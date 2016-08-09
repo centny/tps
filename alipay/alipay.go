@@ -69,7 +69,6 @@ func (c *Client) CreateUrl(utype, notify_url, return_url, out_trade_no, subject,
 }
 
 func (c *Client) Return(hs *routing.HTTPSession) routing.HResult {
-	log.D("Return->%v", "xxx")
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
@@ -83,10 +82,10 @@ func (c *Client) Return(hs *routing.HTTPSession) routing.HResult {
 	data, _ = url.QueryUnescape(data)
 	var err = c.Web.Verify(data, sign, sign_type)
 	if err == nil {
-		log.D("Client.Return receive verify request and call on return by args:\nsign_type=%v&sign=%v%v\n<-", sign_type, sign, data)
+		slog("Client.Return(Alipay) receive verify request from(%v) and call on return by args:\nsign_type=%v&sign=%v%v\n<-", addr, sign_type, sign, data)
 		return c.H.OnReturn(c, hs)
 	} else {
-		log.W("Client.Notify recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
+		log.W("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
 		return routing.HRES_RETURN
@@ -94,7 +93,6 @@ func (c *Client) Return(hs *routing.HTTPSession) routing.HResult {
 }
 
 func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
-	log.D("Notify->%v", "xxx")
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
@@ -108,17 +106,17 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 	data, _ = url.QueryUnescape(data)
 	var err = c.Web.Verify(data, sign, sign_type)
 	if err != nil {
-		log.W("Client.Notify recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
+		log.W("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
 		return routing.HRES_RETURN
 	}
-	log.D("Client.Notify receive verify request from address(%v) by args:\nsign_type=%v&sign=%v&%v\n<-", addr, sign_type, sign, data)
+	slog("Client.Notify(Alipay) receive verify request from address(%v) by args:\nsign_type=%v&sign=%v&%v\n<-", addr, sign_type, sign, data)
 	err = c.H.OnNotify(c, hs)
 	if err == nil {
 		hs.W.Write([]byte("success"))
 	} else {
-		log.W("Client.Notify call on notify fail with error(%v)", err)
+		log.W("Client.Notify(Alipay) call on notify fail with error(%v)", err)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
 	}

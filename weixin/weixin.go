@@ -68,7 +68,7 @@ func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 		err = util.Err("Client.CreateOrder  marshal fail with error(%v)", err)
 		return nil, err
 	}
-	slog("Client.CreateOrder do create order by data:\n%v", string(bys))
+	slog("Client.CreateOrder(Weixin) do create order by data:\n%v", string(bys))
 	code, res, err := util.HPostN(c.UnifiedOrder, "application/xml", bytes.NewBuffer(bys))
 	if err != nil {
 		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
@@ -128,6 +128,10 @@ func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (*OrderQueryBack, error
 }
 
 func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
+	var addr = hs.R.Header.Get("X-Real-IP")
+	if len(addr) < 1 {
+		addr = hs.R.RemoteAddr
+	}
 	var res = &NaviteNotifyBack{}
 	defer func() {
 		bys, _ := xml.Marshal(res)
@@ -136,25 +140,26 @@ func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
 	var native = &NaviteNotifyArgs{}
 	var bys, err = hs.UnmarshalX_v(native)
 	if err != nil {
-		log.E("Client.Notify %v", err)
+		log.E("Client.NativeNotify(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
 	err = native.VerifySign(&c.Native, native.Sign)
 	if err != nil {
-		log.E("Client.Notify verify fail with error(%v)->\n%v", err, string(bys))
+		log.E("Client.NativeNotify(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
+	slog("Client.NativeNotify(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
 	err = c.H.OnNotify(c, hs, native)
 	if err == nil {
 		res.ReturnCode = "SUCCESS"
 		res.ReturnMsg = "OK"
 		return routing.HRES_RETURN
 	} else {
-		log.E("Client.Notify notify fail with error(%v)->\n%v", err, string(bys))
+		log.E("Client.Notify(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
