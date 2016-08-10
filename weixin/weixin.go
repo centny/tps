@@ -46,18 +46,21 @@ func (c *Client) CreateNativeOrder(notify_url, out_trade_no, body string, total_
 	return c.CreateOrder(args, &c.Native)
 }
 
-func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, total_fee float64) (string, error) {
-	var ord, err = c.CreateNativeOrder(notify_url, out_trade_no, body, total_fee)
+func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, total_fee float64) (qr string, url string, err error) {
+	var ord *OrderBack
+	ord, err = c.CreateNativeOrder(notify_url, out_trade_no, body, total_fee)
 	if err != nil {
-		return "", err
+		return
 	}
 	os.MkdirAll(c.Tmp, os.ModePerm)
 	var tmpf = filepath.Join(c.Tmp, "wx_"+out_trade_no+".png")
 	_, err = util.Exec2(fmt.Sprintf(c.CmdF, ord.CodeUrl, tmpf))
 	if err != nil {
-		return "", err
+		return
 	}
-	return fmt.Sprintf("%v%v/qr/wx_%v.png", c.Host, c.Pre, out_trade_no), nil
+	url = ord.CodeUrl
+	qr = fmt.Sprintf("%v%v/qr/wx_%v.png", c.Host, c.Pre, out_trade_no)
+	return
 }
 
 func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {
