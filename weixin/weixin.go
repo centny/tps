@@ -9,6 +9,7 @@ import (
 	"github.com/Centny/gwf/util"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -44,13 +45,14 @@ func (c *Client) C(key string) *Conf {
 	var conf = c.Conf[key]
 	if conf == nil {
 		conf = &Conf{}
+		c.Conf[key] = conf
 	}
 	return conf
 }
 
-func (c *Client) CreateNativeOrder(notify_url, out_trade_no, body string, total_fee float64) (*OrderBack, error) {
-	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
-}
+// func (c *Client) CreateNativeOrder(notify_url, out_trade_no, body string, total_fee float64) (*OrderBack, error) {
+// 	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
+// }
 
 func (c *Client) CreateOrder(key, notify_url, out_trade_no, body string, total_fee float64) (*OrderBack, error) {
 	var args = &OrderArgs{}
@@ -61,8 +63,8 @@ func (c *Client) CreateOrder(key, notify_url, out_trade_no, body string, total_f
 	return c.CreateOrderV(args, c.Conf[key])
 }
 
-func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
-	back, err = c.CreateNativeOrder(notify_url, out_trade_no, body, total_fee)
+func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
+	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee)
 	if err != nil {
 		return
 	}
@@ -160,7 +162,8 @@ func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (*OrderQueryBack, error
 	return ores, err
 }
 
-func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
+	_, key := path.Split(hs.R.URL.Path)
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
@@ -178,7 +181,7 @@ func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	err = native.VerifySign(&c.Native, native.Sign)
+	err = native.VerifySign(c.Conf[key], native.Sign)
 	if err != nil {
 		log.E("Client.NativeNotify(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
@@ -201,6 +204,6 @@ func (c *Client) NativeNotify(hs *routing.HTTPSession) routing.HResult {
 
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {
 	c.Pre = pre
-	mux.HFunc("^"+pre+"/notify(\\?.*)?$", c.NativeNotify)
+	mux.HFunc("^"+pre+"/notify/[^/]*(\\?.*)?$", c.Notify)
 	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
 }
