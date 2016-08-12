@@ -20,7 +20,7 @@ type Client struct {
 	UnifiedOrder string
 	QueryOrder   string
 	Native       Conf
-	App          map[string]*Conf
+	Conf         map[string]*Conf
 	H            Evh
 	Host         string
 	Pre          string
@@ -36,17 +36,29 @@ func NewClient(unified, query, host string, h Evh) *Client {
 		Host:         host,
 		Tmp:          "/tmp/weixin",
 		CmdF:         "/usr/local/bin/qrencode %v -o %v",
-		App:          map[string]*Conf{},
+		Conf:         map[string]*Conf{},
 	}
 }
 
+func (c *Client) C(key string) *Conf {
+	var conf = c.Conf[key]
+	if conf == nil {
+		conf = &Conf{}
+	}
+	return conf
+}
+
 func (c *Client) CreateNativeOrder(notify_url, out_trade_no, body string, total_fee float64) (*OrderBack, error) {
+	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
+}
+
+func (c *Client) CreateOrder(key, notify_url, out_trade_no, body string, total_fee float64) (*OrderBack, error) {
 	var args = &OrderArgs{}
 	args.NotifyUrl, args.OutTradeNo = notify_url, out_trade_no
 	args.Body = body
 	args.TotalFee = int(total_fee * 100)
 	args.TradeType = TT_NATIVE
-	return c.CreateOrder(args, &c.Native)
+	return c.CreateOrderV(args, c.Conf[key])
 }
 
 func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
@@ -64,21 +76,24 @@ func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, tota
 	return
 }
 
-func (c *Client) CreateOrderAppArgs(key string, back *OrderBack) *OrderAppArgs {
-	var conf = c.App[key]
-	var args = &OrderAppArgs{
-		Appid:     conf.Appid,
-		Partnerid: conf.Mchid,
-		Prepayid:  back.PrepayId,
-		Package:   "Sign=WXPay",
-		Noncestr:  strings.ToUpper(util.UUID()),
-		Timestamp: util.Now(),
+func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
+	var conf = c.Conf[key]
+	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee)
+	if err == nil {
+		args = &OrderAppArgs{
+			Appid:     conf.Appid,
+			Partnerid: conf.Mchid,
+			Prepayid:  back.PrepayId,
+			Package:   "Sign=WXPay",
+			Noncestr:  strings.ToUpper(util.UUID()),
+			Timestamp: util.NowSec(),
+		}
+		args.SetSign(conf)
 	}
-	args.SetSign(conf)
-	return args
+	return
 }
 
-func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {
+func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
