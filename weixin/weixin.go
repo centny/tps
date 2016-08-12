@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Evh interface {
@@ -19,6 +20,7 @@ type Client struct {
 	UnifiedOrder string
 	QueryOrder   string
 	Native       Conf
+	App          map[string]*Conf
 	H            Evh
 	Host         string
 	Pre          string
@@ -34,6 +36,7 @@ func NewClient(unified, query, host string, h Evh) *Client {
 		Host:         host,
 		Tmp:          "/tmp/weixin",
 		CmdF:         "/usr/local/bin/qrencode %v -o %v",
+		App:          map[string]*Conf{},
 	}
 }
 
@@ -59,6 +62,20 @@ func (c *Client) CreateNativeOrderQr(notify_url, out_trade_no, body string, tota
 	}
 	qr = fmt.Sprintf("%v%v/qr/wx_%v.png", c.Host, c.Pre, out_trade_no)
 	return
+}
+
+func (c *Client) CreateOrderAppArgs(key string, back *OrderBack) *OrderAppArgs {
+	var conf = c.App[key]
+	var args = &OrderAppArgs{
+		Appid:     conf.Appid,
+		Partnerid: conf.Mchid,
+		Prepayid:  back.PrepayId,
+		Package:   "Sign=WXPay",
+		Noncestr:  strings.ToUpper(util.UUID()),
+		Timestamp: util.Now(),
+	}
+	args.SetSign(conf)
+	return args
 }
 
 func (c *Client) CreateOrder(args *OrderArgs, conf *Conf) (*OrderBack, error) {

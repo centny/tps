@@ -320,3 +320,17 @@ func (o *OrderQueryBack) VerifySign(conf *Conf, sign string) error {
 		return util.Err("md5 verify fail")
 	}
 }
+
+type OrderAppArgs struct {
+	Appid     string `json:"appid"`     //	String(32)	是	wx8888888888888888	微信开放平台审核通过的应用APPID
+	Partnerid string `json:"partnerid"` //	String(32)	是	1900000109	微信支付分配的商户号
+	Prepayid  string `json:"prepayid"`  //	String(32)	是	WX1217752501201407033233368018	微信返回的支付交易会话ID
+	Package   string `json:"package"`   //	String(128)	是	Sign=WXPay	暂填写固定值Sign=WXPay
+	Noncestr  string `json:"noncestr"`  //	String(32)	是	5K8264ILTKCH16CQ2502SI8ZNMTM67VS	随机字符串，不长于32位。推荐随机数生成算法
+	Timestamp int64  `json:"timestamp"` //	String(10)	是	1412000000	时间戳，请见接口规则-参数规定
+	Sign      string `json:"sign"`      //	String(32)	是	C380BEC2BFD727A4B6845133519F3AD6	签名，详见签名生成算法
+}
+
+func (o *OrderAppArgs) SetSign(conf *Conf) {
+	o.Sign = conf.Md5SignV(o)
+}
