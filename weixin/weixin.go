@@ -88,7 +88,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 			Prepayid:  back.PrepayId,
 			Package:   "Sign=WXPay",
 			Noncestr:  strings.ToUpper(util.UUID()),
-			Timestamp: util.NowSec(),
+			Timestamp: util.NowSec() / 1000,
 		}
 		args.SetSign(conf)
 	}
