@@ -95,6 +95,23 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	return
 }
 
+func (c *Client) CreateH5Order(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
+	var conf = c.Conf[key]
+	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee, TT_APP)
+	if err == nil {
+		args = &OrderAppArgs{
+			Appid:     conf.Appid,
+			Partnerid: conf.Mchid,
+			Prepayid:  back.PrepayId,
+			Package:   "prepay_id=" + back.PrepayId,
+			Noncestr:  strings.ToUpper(util.UUID()),
+			Timestamp: util.NowSec() / 1000,
+		}
+		args.SetSign(conf)
+	}
+	return
+}
+
 func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
