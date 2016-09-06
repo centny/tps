@@ -54,17 +54,18 @@ func (c *Client) C(key string) *Conf {
 // 	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
 // }
 
-func (c *Client) CreateOrder(key, notify_url, out_trade_no, body string, total_fee float64, trade string) (*OrderBack, error) {
+func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee float64, trade string) (*OrderBack, error) {
 	var args = &OrderArgs{}
 	args.NotifyUrl, args.OutTradeNo = notify_url, out_trade_no
 	args.Body = body
 	args.TotalFee = int(total_fee * 100)
 	args.TradeType = trade
+	args.Openid = openid
 	return c.CreateOrderV(args, c.Conf[key])
 }
 
 func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
-	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee, TT_NATIVE)
+	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_NATIVE)
 	if err != nil {
 		return
 	}
@@ -80,7 +81,7 @@ func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total
 
 func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
 	var conf = c.Conf[key]
-	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee, TT_APP)
+	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_APP)
 	if err == nil {
 		args = &OrderAppArgs{
 			Appid:     conf.Appid,
@@ -97,7 +98,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 
 func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
 	var conf = c.Conf[key]
-	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
+	back, err = c.CreateOrder(key, openid, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
 	if err == nil {
 		args = &OrderAppArgs{
 			Appid:     conf.Appid,
@@ -106,7 +107,6 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 			Package:   "prepay_id=" + back.PrepayId,
 			Noncestr:  strings.ToUpper(util.UUID()),
 			Timestamp: util.NowSec() / 1000,
-			Openid:    openid,
 		}
 		args.SetSign(conf)
 	}
