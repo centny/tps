@@ -328,6 +328,7 @@ type OrderAppArgs struct {
 	Package   string `xml:"package" json:"package"`     //	String(128)	是	Sign=WXPay	暂填写固定值Sign=WXPay
 	Noncestr  string `xml:"noncestr" json:"noncestr"`   //	String(32)	是	5K8264ILTKCH16CQ2502SI8ZNMTM67VS	随机字符串，不长于32位。推荐随机数生成算法
 	Timestamp int64  `xml:"timestamp" json:"timestamp"` //	String(10)	是	1412000000	时间戳，请见接口规则-参数规定
+	Openid    string `xml:"openid" json:"openid"`       //
 	Sign      string `xml:"sign" json:"sign"`           //	String(32)	是	C380BEC2BFD727A4B6845133519F3AD6	签名，详见签名生成算法
 }
 

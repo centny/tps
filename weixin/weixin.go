@@ -95,7 +95,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	return
 }
 
-func (c *Client) CreateH5Order(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
+func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
 	var conf = c.Conf[key]
 	back, err = c.CreateOrder(key, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
 	if err == nil {
@@ -106,6 +106,7 @@ func (c *Client) CreateH5Order(key, notify_url, out_trade_no, body string, total
 			Package:   "prepay_id=" + back.PrepayId,
 			Noncestr:  strings.ToUpper(util.UUID()),
 			Timestamp: util.NowSec() / 1000,
+			Openid:    openid,
 		}
 		args.SetSign(conf)
 	}
