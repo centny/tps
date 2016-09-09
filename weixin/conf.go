@@ -2,12 +2,11 @@ package weixin
 
 import (
 	"fmt"
+	"github.com/Centny/gwf/log"
+	"github.com/Centny/gwf/util"
 	"net/url"
 	"reflect"
 	"strings"
-
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/util"
 )
 
 type Conf struct {
@@ -57,15 +56,6 @@ func (c *Conf) Md5Verify(data, sign string) error {
 		return nil
 	} else {
 		return util.Err("md5 verify fail")
-	}
-}
-
-func (c *Conf) Clone() *Conf {
-	return &Conf{
-		Appid:     c.Appid,
-		Mchid:     c.Mchid,
-		Key:       c.Key,
-		AppSecret: c.AppSecret,
 	}
 }
 
