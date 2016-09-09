@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/routing"
-	"github.com/Centny/gwf/util"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/Centny/gwf/log"
+	"github.com/Centny/gwf/routing"
+	"github.com/Centny/gwf/util"
 )
 
 type Evh interface {
@@ -97,17 +98,35 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 }
 
 func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderH5Args, back *OrderBack, err error) {
-	var conf = c.Conf[key]
+	return c.CreateH5OrderV(nil, key, openid, notify_url, out_trade_no, body, total_fee)
+}
+
+func (c *Client) CreateH5OrderV(conf *Conf, key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderH5Args, back *OrderBack, err error) {
+	var keyConf = c.Conf[key].Clone()
+	if conf != nil {
+		if len(conf.Appid) > 0 {
+			keyConf.Appid = conf.Appid
+		}
+		if len(conf.AppSecret) > 0 {
+			keyConf.AppSecret = conf.AppSecret
+		}
+		if len(conf.Key) > 0 {
+			keyConf.Key = conf.Key
+		}
+		if len(conf.Mchid) > 0 {
+			keyConf.Mchid = conf.Mchid
+		}
+	}
 	back, err = c.CreateOrder(key, openid, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
 	if err == nil {
 		args = &OrderH5Args{
-			Appid:     conf.Appid,
+			Appid:     keyConf.Appid,
 			SignType:  "MD5",
 			Package:   "prepay_id=" + back.PrepayId,
 			NonceStr:  strings.ToUpper(util.UUID()),
 			TimeStamp: util.NowSec() / 1000,
 		}
-		args.SetSign(conf)
+		args.SetSign(keyConf)
 	}
 	return
 }
