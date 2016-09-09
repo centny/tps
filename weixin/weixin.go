@@ -156,7 +156,7 @@ func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 		return nil, err
 	}
 	if ores.ReturnCode != "SUCCESS" {
-		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with error(%v)", string(bys), ores.ReturnMsg)
+		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v", string(bys), ores.ReturnCode, ores.ReturnMsg, ores)
 		return nil, err
 	}
 	err = ores.VerifySign(conf, ores.Sign)
