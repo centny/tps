@@ -7,11 +7,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+
 	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/util"
 )
 
 type Conf struct {
+	Appid   string
 	Partner string
 	Seller  string
 	MD5     string
@@ -20,7 +22,8 @@ type Conf struct {
 	Alipay  *rsa.PublicKey
 }
 
-func (c *Conf) Load(partner, seller, md5, private, publish, alipay string) error {
+func (c *Conf) Load(appid, partner, seller, md5, private, publish, alipay string) error {
+	c.Appid = appid
 	c.Partner, c.Seller, c.MD5 = partner, seller, md5
 	var err error
 	//

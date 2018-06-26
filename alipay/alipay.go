@@ -2,9 +2,13 @@ package alipay
 
 import (
 	"fmt"
+	"net/url"
+	"time"
+
+	"github.com/Centny/gwf/util"
+
 	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/routing"
-	"net/url"
 )
 
 type Evh interface {
@@ -25,6 +29,27 @@ func NewClient(gateway string, h Evh) *Client {
 func (c *Client) CreateUrl(utype, notify_url, return_url, out_trade_no, subject, body string, total_fee float64) string {
 	var vals = &url.Values{}
 	switch utype {
+	case "PRE":
+		vals.Add("app_id", c.Web.Appid)
+		vals.Add("method", "alipay.trade.precreate")
+		vals.Add("format", "JSON")
+		vals.Add("charset", "utf-8")
+		vals.Add("timestamp", time.Now().Format("2006-01-02 15:04:05"))
+		vals.Add("version", "1.0")
+		vals.Add("notify_url", notify_url)
+		vals.Add("biz_content", util.S2Json(util.Map{
+			"out_trade_no": out_trade_no,
+			"total_amount": fmt.Sprintf("%.02f", total_fee),
+			"subject":      subject,
+		}))
+		//
+		vals.Add("sign_type", "RSA")
+		var data = vals.Encode()
+		data, _ = url.QueryUnescape(data)
+		var sign, _ = c.Web.ShaSign(data)
+		vals.Add("sign", sign)
+		return fmt.Sprintf("%v?%v", c.Gateway, vals.Encode())
+		//
 	case "APP":
 		vals.Add("partner", fmt.Sprintf("\"%v\"", c.Web.Partner))
 		vals.Add("seller_id", fmt.Sprintf("\"%v\"", c.Web.Seller))
@@ -36,6 +61,15 @@ func (c *Client) CreateUrl(utype, notify_url, return_url, out_trade_no, subject,
 		vals.Add("notify_url", fmt.Sprintf("\"%v\"", notify_url))
 		vals.Add("payment_type", "\"1\"")
 		vals.Add("_input_charset", "\"utf-8\"")
+		//
+		var data = vals.Encode()
+		data, _ = url.QueryUnescape(data)
+		var sign, _ = c.Web.ShaSign(data)
+		vals.Add("sign_type", "\"RSA\"")
+		vals.Add("sign", fmt.Sprintf("\"%v\"", url.QueryEscape(sign)))
+		data, _ = url.QueryUnescape(vals.Encode())
+		return data
+		//
 	default:
 		vals.Add("_input_charset", "utf-8")
 		vals.Add("service", "create_direct_pay_by_user")
@@ -50,21 +84,14 @@ func (c *Client) CreateUrl(utype, notify_url, return_url, out_trade_no, subject,
 		vals.Add("total_fee", fmt.Sprintf("%.02f", total_fee))
 		vals.Add("seller_email", c.Web.Seller)
 		vals.Add("body", body)
-	}
-	var data = vals.Encode()
-	data, _ = url.QueryUnescape(data)
-	switch utype {
-	case "APP":
-		var sign, _ = c.Web.ShaSign(data)
-		vals.Add("sign_type", "\"RSA\"")
-		vals.Add("sign", fmt.Sprintf("\"%v\"", url.QueryEscape(sign)))
-		data, _ = url.QueryUnescape(vals.Encode())
-		return data
-	default:
+		//
+		var data = vals.Encode()
+		data, _ = url.QueryUnescape(data)
 		var sign = c.Web.Md5Sign(data)
 		vals.Add("sign_type", "MD5")
 		vals.Add("sign", sign)
 		return fmt.Sprintf("%v?%v", c.Gateway, vals.Encode())
+		//
 	}
 }
 
