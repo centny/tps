@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/routing"
-	"github.com/Centny/gwf/util"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/Centny/gwf/log"
+	"github.com/Centny/gwf/routing"
+	"github.com/Centny/gwf/util"
 )
 
 type Evh interface {
@@ -20,13 +21,13 @@ type Evh interface {
 type Client struct {
 	UnifiedOrder string
 	QueryOrder   string
-	Native       Conf
-	Conf         map[string]*Conf
-	H            Evh
-	Host         string
-	Pre          string
-	Tmp          string
-	CmdF         string
+	// Native       Conf
+	Conf map[string]*Conf
+	H    Evh
+	Host string
+	Pre  string
+	Tmp  string
+	CmdF string
 }
 
 func NewClient(unified, query, host string, h Evh) *Client {
@@ -185,22 +186,31 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
 	}
+	log.D("Client.NativeNotify(Weixin) receive notify on %v from %v", key, addr)
 	var res = &NaviteNotifyBack{}
 	defer func() {
 		bys, _ := xml.Marshal(res)
 		hs.W.Write(bys)
 	}()
-	var native = &NaviteNotifyArgs{}
-	var bys, err = hs.UnmarshalX_v(native)
+	var anyArgs = AnyNotifyArgs{}
+	var bys, err = hs.UnmarshalX_v(&anyArgs)
 	if err != nil {
 		log.E("Client.NativeNotify(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	err = native.VerifySign(c.Conf[key], native.Sign)
+	err = anyArgs.VerifySign(c.Conf[key], anyArgs["sign"])
 	if err != nil {
 		log.E("Client.NativeNotify(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
+	var native = &NaviteNotifyArgs{}
+	err = xml.Unmarshal(bys, native)
+	if err != nil {
+		log.E("Client.NativeNotify(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN

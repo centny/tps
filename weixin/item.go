@@ -3,9 +3,11 @@ package weixin
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/Centny/gwf/util"
+	"io"
 	"reflect"
 	"strings"
+
+	"github.com/Centny/gwf/util"
 )
 
 const (
@@ -200,6 +202,38 @@ type NaviteNotifyArgs struct {
 
 func (o *NaviteNotifyArgs) VerifySign(conf *Conf, sign string) error {
 	var tsign = conf.Md5SignV(o)
+	if tsign == sign {
+		return nil
+	} else {
+		return util.Err("md5 verify fail")
+	}
+}
+
+type AnyNotifyArgs map[string]string
+
+type xmlMapEntry struct {
+	XMLName xml.Name
+	Value   string `xml:",chardata"`
+}
+
+func (a *AnyNotifyArgs) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	*a = AnyNotifyArgs{}
+	for {
+		var e xmlMapEntry
+		err := d.Decode(&e)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		(*a)[e.XMLName.Local] = e.Value
+	}
+	return nil
+}
+
+func (a AnyNotifyArgs) VerifySign(conf *Conf, sign string) error {
+	var tsign = conf.Md5SignV(a)
 	if tsign == sign {
 		return nil
 	} else {
