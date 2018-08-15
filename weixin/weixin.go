@@ -113,6 +113,11 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 	return
 }
 
+func (c *Client) LoadOpenID(key, code string) (res util.Map, err error) {
+	var conf = c.Conf[key]
+	return util.HGet2("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+}
+
 func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
