@@ -62,7 +62,11 @@ func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string,
 	args.TotalFee = int(total_fee * 100)
 	args.TradeType = trade
 	args.Openid = openid
-	return c.CreateOrderV(args, c.Conf[key])
+	conf := c.Conf[key]
+	if conf == nil {
+		return nil, fmt.Errorf("conf not found by key(%v)", key)
+	}
+	return c.CreateOrderV(args, conf)
 }
 
 func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
@@ -82,6 +86,9 @@ func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total
 
 func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
 	var conf = c.Conf[key]
+	if conf == nil {
+		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
+	}
 	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_APP)
 	if err == nil {
 		args = &OrderAppArgs{
@@ -99,6 +106,9 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 
 func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderH5Args, back *OrderBack, err error) {
 	var conf = c.Conf[key]
+	if conf == nil {
+		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
+	}
 	back, err = c.CreateOrder(key, openid, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
 	if err == nil {
 		args = &OrderH5Args{
@@ -115,6 +125,9 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 
 func (c *Client) LoadOpenID(key, code string) (res util.Map, err error) {
 	var conf = c.Conf[key]
+	if conf == nil {
+		return nil, fmt.Errorf("conf not found by key(%v)", key)
+	}
 	return util.HGet2("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
 }
 
@@ -197,6 +210,14 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 		bys, _ := xml.Marshal(res)
 		hs.W.Write(bys)
 	}()
+	conf := c.Conf[key]
+	if conf == nil {
+		err := fmt.Errorf("conf not found by key(%v)", key)
+		log.E("Client.Notify(Weixin) notify fail with error(%v)%v", err)
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
 	var anyArgs = AnyNotifyArgs{}
 	var bys, err = hs.UnmarshalX_v(&anyArgs)
 	if err != nil {
@@ -205,7 +226,7 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	err = anyArgs.VerifySign(c.Conf[key], anyArgs["sign"])
+	err = anyArgs.VerifySign(conf, anyArgs["sign"])
 	if err != nil {
 		log.E("Client.NativeNotify(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"

@@ -2,10 +2,11 @@ package alipay
 
 import (
 	"fmt"
-	"github.com/Centny/gwf/routing"
-	"github.com/Centny/gwf/routing/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/Centny/gwf/routing"
+	"github.com/Centny/gwf/routing/httptest"
 )
 
 type test_h struct {
@@ -21,9 +22,10 @@ func (t *test_h) OnReturn(c *Client, hs *routing.HTTPSession) routing.HResult {
 
 func TestAlipay(t *testing.T) {
 	var client = NewClient("https://mapi.alipay.com/gateway.do", &test_h{})
-	client.Web.Load(
+	client.C("web").Load(
 		"2088501949844011",
 		"itdayang@gmail.com",
+		"",
 		"viz4safb1zazb5bqeraujlg79agfcj02",
 		`
 -----BEGIN RSA PRIVATE KEY-----
@@ -51,12 +53,12 @@ B/VsW8OoM8fxn67UDYuyBTqA23MML9q1+ilIZwBC2AQ2UBVOrFXfFl75p6/B5Ksi
 NG9zpgmLCUYuLkxpLQIDAQAB
 -----END PUBLIC KEY-----
 	`)
-	fmt.Println(client.CreateUrl("Web", "http://pb.dev.jxzy.com/_echo_", "http://pb.dev.jxzy.com/_echo_", "6843192280647119", "abcc", "223", 0.01))
-	fmt.Println(client.CreateUrl("APP", "http://pb.dev.jxzy.com/_echo_", "http://pb.dev.jxzy.com/_echo_", "6843192280647119", "abcc", "223", 0.01))
+	fmt.Println(client.CreateUrl("web", "Web", "http://pb.dev.jxzy.com/_echo_", "http://pb.dev.jxzy.com/_echo_", "6843192280647119", "abcc", "223", 0.01))
+	fmt.Println(client.CreateUrl("web", "APP", "http://pb.dev.jxzy.com/_echo_", "http://pb.dev.jxzy.com/_echo_", "6843192280647119", "abcc", "223", 0.01))
 	var ts = httptest.NewMuxServer()
 	// ts.Mux.HFunc("^/return(\\?.*)?$", client.Return)
-	ts.Mux.HFunc("^/notify(\\?.*)?$", client.Notify)
+	ts.Mux.HFunc("^/notify/web(\\?.*)?$", client.Notify)
 	// fmt.Println(ts.G("/return?%v", "body=223&buyer_email=centny%40gmail.com&buyer_id=2088102972036594&exterface=create_direct_pay_by_user&is_success=T&notify_id=RqPnCoPT3K9%252Fvwbh3InWfjSquPZ53GKZDlpLiPerRyczkZ1BqSCeryalHBnmC%252FQ3uhhI&notify_time=2016-08-04+11%3A15%3A02&notify_type=trade_status_sync&out_trade_no=6843192280647112&payment_type=1&seller_email=itdayang%40gmail.com&seller_id=2088501949844011&subject=abcc&total_fee=0.01&trade_no=2016080421001004590289703858&trade_status=TRADE_SUCCESS&sign=f98956240273d3bda99b84c9a64c27a4&sign_type=MD5"))
 	fmt.Println("xxxx->a")
-	fmt.Println(ts.G("/notify?%v", url.QueryEscape("body=支付课程&buyer_email=1240001796@qq.com&buyer_id=2088302272527260&discount=0.00&gmt_create=2016-08-08 13:40:38&is_total_fee_adjust=Y&notify_id=0f64fed2e4d592d15ff093e08f7b526i0a&notify_time=2016-08-08 13:54:14&notify_type=trade_status_sync&out_trade_no=201608081334210000000004&payment_type=1&price=0.01&quantity=1&seller_email=itdayang@gmail.com&seller_id=2088501949844011&subject=酷校购买课程&total_fee=0.01&trade_no=2016080821001004260264757851&trade_status=WAIT_BUYER_PAY&use_coupon=N")))
+	fmt.Println(ts.G("/notify/web?%v", url.QueryEscape("body=支付课程&buyer_email=1240001796@qq.com&buyer_id=2088302272527260&discount=0.00&gmt_create=2016-08-08 13:40:38&is_total_fee_adjust=Y&notify_id=0f64fed2e4d592d15ff093e08f7b526i0a&notify_time=2016-08-08 13:54:14&notify_type=trade_status_sync&out_trade_no=201608081334210000000004&payment_type=1&price=0.01&quantity=1&seller_email=itdayang@gmail.com&seller_id=2088501949844011&subject=酷校购买课程&total_fee=0.01&trade_no=2016080821001004260264757851&trade_status=WAIT_BUYER_PAY&use_coupon=N")))
 }
