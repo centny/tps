@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -121,6 +122,19 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 		}
 		args.SetSign(conf)
 	}
+	return
+}
+
+func (c *Client) GenerateAuthURL(key, scope, redirect, state string) (uri string, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	uri = fmt.Sprintf(
+		`https://open.weixin.qq.com/connect/oauth2/authorize?appid=%v&redirect_uri=%v&response_type=code&scope=%v&state=%v#wechat_redirect`,
+		conf.Appid, url.QueryEscape(redirect), scope, state,
+	)
 	return
 }
 
