@@ -380,3 +380,33 @@ type OrderH5Args struct {
 func (o *OrderH5Args) SetSign(conf *Conf) {
 	o.PaySign = conf.Md5SignV(o)
 }
+
+const (
+	ScopeBase     = "snsapi_base"
+	ScopeUserinfo = "snsapi_userinfo"
+)
+
+type AccessTokenReturn struct {
+	OpenID       string `json:"openid"`
+	ExpiresIn    int    `json:"expires_in"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+	Code         int    `json:"errcode"`
+	Message      string `json:"errmsg"`
+}
+
+type UserinfoReturn struct {
+	OpenID     string   `json:"openid"`
+	Nickname   string   `json:"nickname"`
+	Sex        int      `json:"sex"`
+	Province   string   `json:"province"`
+	City       string   `json:"city"`
+	Country    string   `json:"country"`
+	HeadImgURL string   `json:"headimgurl"`
+	Privilege  []string `json:"privilege"`
+	Unionid    string   `json:"unionid"`
+	Scope      string   `json:"scope"`
+	Code       int      `json:"errcode"`
+	Message    string   `json:"errmsg"`
+}

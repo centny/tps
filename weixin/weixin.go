@@ -2,6 +2,7 @@ package weixin
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -123,12 +124,58 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 	return
 }
 
-func (c *Client) LoadOpenID(key, code string) (res util.Map, err error) {
+func (c *Client) LoadAccessToken(key, code string) (ret *AccessTokenReturn, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
-		return nil, fmt.Errorf("conf not found by key(%v)", key)
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
 	}
-	return util.HGet2("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+	var data string
+	for i := 0; i < 5; i++ {
+		data, err = util.HGet("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return
+	}
+	ret = &AccessTokenReturn{}
+	err = json.Unmarshal([]byte(data), ret)
+	if err != nil {
+		return
+	}
+	if ret.Code > 0 {
+		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
+	}
+	return
+}
+
+func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoReturn, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	var data string
+	for i := 0; i < 5; i++ {
+		data, err = util.HGet("https://api.weixin.qq.com/sns/userinfo?access_token=%v&openid=%v&lang=zh_CN", accessToken, openid)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return
+	}
+	ret = &UserinfoReturn{}
+	err = json.Unmarshal([]byte(data), ret)
+	if err != nil {
+		return
+	}
+	if ret.Code > 0 {
+		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
+	}
+	return
 }
 
 func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
