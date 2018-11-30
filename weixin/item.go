@@ -236,9 +236,8 @@ func (a AnyNotifyArgs) VerifySign(conf *Conf, sign string) error {
 	var tsign = conf.Md5SignV(a)
 	if tsign == sign {
 		return nil
-	} else {
-		return util.Err("md5 verify fail")
 	}
+	return fmt.Errorf("md5 verify fail")
 }
 
 type NaviteNotifyBack struct {

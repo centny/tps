@@ -55,11 +55,11 @@ func (c *Client) C(key string) *Conf {
 // 	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
 // }
 
-func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee float64, trade string) (*OrderBack, error) {
+func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee int, trade string) (*OrderBack, error) {
 	var args = &OrderArgs{}
 	args.NotifyUrl, args.OutTradeNo = notify_url, out_trade_no
 	args.Body = body
-	args.TotalFee = int(total_fee * 100)
+	args.TotalFee = total_fee
 	args.TradeType = trade
 	args.Openid = openid
 	conf := c.Conf[key]
@@ -69,7 +69,7 @@ func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string,
 	return c.CreateOrderV(args, conf)
 }
 
-func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee float64) (qr string, back *OrderBack, err error) {
+func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee int) (qr string, back *OrderBack, err error) {
 	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_NATIVE)
 	if err != nil {
 		return
@@ -84,7 +84,7 @@ func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total
 	return
 }
 
-func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee float64) (args *OrderAppArgs, back *OrderBack, err error) {
+func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee int) (args *OrderAppArgs, back *OrderBack, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -104,7 +104,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	return
 }
 
-func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee float64) (args *OrderH5Args, back *OrderBack, err error) {
+func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee int) (args *OrderH5Args, back *OrderBack, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -213,7 +213,7 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 	conf := c.Conf[key]
 	if conf == nil {
 		err := fmt.Errorf("conf not found by key(%v)", key)
-		log.E("Client.Notify(Weixin) notify fail with error(%v)%v", err)
+		log.E("Client.Notify(Weixin) notify fail with error(%v)", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
@@ -247,12 +247,11 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnCode = "SUCCESS"
 		res.ReturnMsg = "OK"
 		return routing.HRES_RETURN
-	} else {
-		log.E("Client.Notify(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
-		res.ReturnCode = "FAIL"
-		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
 	}
+	log.E("Client.Notify(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+	res.ReturnCode = "FAIL"
+	res.ReturnMsg = err.Error()
+	return routing.HRES_RETURN
 }
 
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {

@@ -20,29 +20,6 @@ func (t *test_h) OnNotify(c *Client, hs *routing.HTTPSession, nativ *NaviteNotif
 }
 
 func TestWeixin(t *testing.T) {
-	// var wx = NewClient(
-	// 	"https://api.mch.weixin.qq.com/pay/unifiedorder",
-	// 	"https://api.mch.weixin.qq.com/pay/orderquery",
-	// 	"",
-	// 	&test_h{},
-	// )
-	// wx.Native.Load(
-	// 	"wxd8ed718345ac5d25", "1313941701",
-	// 	"rp6h3aavmbcll1newi9jdqzfkjfl5ue8", "4d3dcb022f2dc53531bc881b23adcf79",
-	// )
-	// var abc = &Conf{}
-	// abc.Load(
-	// 	"wxd8ed718345ac5d25", "1313941701",
-	// 	"rp6h3aavmbcll1newi9jdqzfkjfl5ue8", "4d3dcb022f2dc53531bc881b23adcf79",
-	// )
-	// wx.App["abc"] = abc
-	// ord, err := wx.CreateNativeOrder("http://wewx.sc", tools.NewOno(), "kfskf", 0.01)
-	// if err != nil {
-	// 	t.Error(err)
-	// 	return
-	// }
-	// fmt.Println("code_url->", ord.CodeUrl)
-	// fmt.Println(wx.CreateOrderAppArgs("abc", ord))
 }
 
 func TestVersion(t *testing.T) {
