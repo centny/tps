@@ -46,7 +46,7 @@ func TestVersion(t *testing.T) {
 <transaction_id><![CDATA[4200000120201806293440894332]]></transaction_id>
 </xml>
 	`
-	var native = AnyNotifyArgs{}
+	var native = AnyArgs{}
 	err := xml.Unmarshal([]byte(data), &native)
 	if err != nil {
 		t.Error(err)

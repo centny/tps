@@ -18,7 +18,8 @@ import (
 )
 
 type Evh interface {
-	OnNotify(c *Client, hs *routing.HTTPSession, nativ *NaviteNotifyArgs) error
+	OnPayNotify(c *Client, hs *routing.HTTPSession, nativ *PayNotifyArgs) error
+	OnRefundNotify(c *Client, hs *routing.HTTPSession, nativ *RefundNotifyArgs) error
 }
 type Client struct {
 	UnifiedOrder string
@@ -57,9 +58,9 @@ func (c *Client) C(key string) *Conf {
 // 	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
 // }
 
-func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee int, trade string) (*OrderBack, error) {
+func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee int, trade string) (AnyArgs, error) {
 	var args = &OrderArgs{}
-	args.NotifyUrl, args.OutTradeNo = notify_url, out_trade_no
+	args.NotifyURL, args.OutTradeNo = notify_url, out_trade_no
 	args.Body = body
 	args.TotalFee = total_fee
 	args.TradeType = trade
@@ -71,14 +72,28 @@ func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string,
 	return c.CreateOrderV(args, conf)
 }
 
-func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee int) (qr string, back *OrderBack, err error) {
+func (c *Client) CreateRefundOrder(key, notify_url, trade_no, out_refund_no string, total_fee, refund_fee int) (AnyArgs, error) {
+	var args = &RefundArgs{}
+	args.NotifyURL = notify_url
+	args.TransactionID = trade_no
+	args.OutRefundNo = out_refund_no
+	args.TotalFee = total_fee
+	args.RefundFee = refund_fee
+	conf := c.Conf[key]
+	if conf == nil {
+		return nil, fmt.Errorf("conf not found by key(%v)", key)
+	}
+	return c.CreateRefundOrderV(args, conf)
+}
+
+func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee int) (qr string, back AnyArgs, err error) {
 	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_NATIVE)
 	if err != nil {
 		return
 	}
 	os.MkdirAll(c.Tmp, os.ModePerm)
 	var tmpf = filepath.Join(c.Tmp, "wx_"+out_trade_no+".png")
-	_, err = util.Exec2(fmt.Sprintf(c.CmdF, back.CodeUrl, tmpf))
+	_, err = util.Exec2(fmt.Sprintf(c.CmdF, back["code_url"], tmpf))
 	if err != nil {
 		return
 	}
@@ -86,7 +101,7 @@ func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total
 	return
 }
 
-func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee int) (args *OrderAppArgs, back *OrderBack, err error) {
+func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, total_fee int) (args *OrderAppArgs, back AnyArgs, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -96,7 +111,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 		args = &OrderAppArgs{
 			Appid:     conf.Appid,
 			Partnerid: conf.Mchid,
-			Prepayid:  back.PrepayId,
+			Prepayid:  back["prepay_id"],
 			Package:   "Sign=WXPay",
 			Noncestr:  strings.ToUpper(util.UUID()),
 			Timestamp: util.NowSec() / 1000,
@@ -106,7 +121,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	return
 }
 
-func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee int) (args *OrderH5Args, back *OrderBack, err error) {
+func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee int) (args *OrderH5Args, back AnyArgs, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -116,7 +131,7 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 		args = &OrderH5Args{
 			Appid:     conf.Appid,
 			SignType:  "MD5",
-			Package:   "prepay_id=" + back.PrepayId,
+			Package:   "prepay_id=" + back["prepay_id"],
 			NonceStr:  strings.ToUpper(util.UUID()),
 			TimeStamp: util.NowSec() / 1000,
 		}
@@ -165,7 +180,7 @@ func (c *Client) LoadAccessToken(key, code string) (ret *AccessTokenReturn, err 
 	return
 }
 
-func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoReturn, err error) {
+func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoBack, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -181,7 +196,7 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoRet
 	if err != nil {
 		return
 	}
-	ret = &UserinfoReturn{}
+	ret = &UserinfoBack{}
 	err = json.Unmarshal([]byte(data), ret)
 	if err != nil {
 		return
@@ -192,7 +207,7 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoRet
 	return
 }
 
-func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
+func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (AnyArgs, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
@@ -210,17 +225,18 @@ func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
 		return nil, err
 	}
-	var ores = &OrderBack{}
-	err = xml.Unmarshal([]byte(res), ores)
+	var ores = AnyArgs{}
+	err = xml.Unmarshal([]byte(res), &ores)
 	if err != nil {
 		err = util.Err("Client.CreateOrder xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
-	if ores.ReturnCode != "SUCCESS" {
-		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v", string(bys), ores.ReturnCode, ores.ReturnMsg, ores)
+	if ores["return_code"] != "SUCCESS" {
+		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
+			string(bys), ores["return_code"], ores["return_msg"], ores)
 		return nil, err
 	}
-	err = ores.VerifySign(conf, ores.Sign)
+	err = ores.VerifySign(conf, ores["sign"])
 	if err != nil {
 		err = util.Err("Client.CreateOrder verify sign with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
@@ -228,7 +244,7 @@ func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (*OrderBack, error) {
 	return ores, err
 }
 
-func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (*OrderQueryBack, error) {
+func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (AnyArgs, error) {
 	args.Appid, args.Mchid = conf.Appid, conf.Mchid
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
@@ -245,13 +261,13 @@ func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (*OrderQueryBack, error
 		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
 		return nil, err
 	}
-	var ores = &OrderQueryBack{}
-	err = xml.Unmarshal([]byte(res), ores)
+	var ores = AnyArgs{}
+	err = xml.Unmarshal([]byte(res), &ores)
 	if err != nil {
 		err = util.Err("Client.CreateOrder xml unmarshal with data(%v) fail with error(%v)", res, err)
 		return nil, err
 	}
-	err = ores.VerifySign(conf, ores.Sign)
+	err = ores.VerifySign(conf, ores["sign"])
 	if err != nil {
 		err = util.Err("Client.CreateOrder verify sign with data(%v) fail with error(%v)", res, err)
 		return nil, err
@@ -259,14 +275,51 @@ func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (*OrderQueryBack, error
 	return ores, err
 }
 
-func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, error) {
+	args.Appid, args.Mchid = conf.Appid, conf.Mchid
+	args.SetSign(conf)
+	var bys, err = xml.Marshal(args)
+	if err != nil {
+		err = util.Err("Client.CreateRefundOrderV  marshal fail with error(%v)", err)
+		return nil, err
+	}
+	slog("Client.CreateRefundOrderV(Weixin) do create order by data:\n%v", string(bys))
+	code, res, err := util.HPostN(c.UnifiedOrder, "application/xml", bytes.NewBuffer(bys))
+	if err != nil {
+		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
+		return nil, err
+	}
+	if code != 200 {
+		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
+		return nil, err
+	}
+	var anyArgs = AnyArgs{}
+	err = xml.Unmarshal([]byte(res), anyArgs)
+	if err != nil {
+		err = util.Err("Client.CreateRefundOrderV xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
+		return nil, err
+	}
+	if anyArgs["return_code"] != "SUCCESS" {
+		err = util.Err("Client.CreateRefundOrderV weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
+			string(bys), anyArgs["return_code"], anyArgs["return_msg"], anyArgs)
+		return nil, err
+	}
+	err = anyArgs.VerifySign(conf, anyArgs["sign"])
+	if err != nil {
+		err = util.Err("Client.CreateRefundOrderV verify sign with data(\n%v\n) fail with error(%v)", res, err)
+		return nil, err
+	}
+	return anyArgs, err
+}
+
+func (c *Client) PayNotifyH(hs *routing.HTTPSession) routing.HResult {
 	_, key := path.Split(hs.R.URL.Path)
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
 	}
-	log.D("Client.NativeNotify(Weixin) receive notify on %v from %v", key, addr)
-	var res = &NaviteNotifyBack{}
+	log.D("Client.PayNotifyH(Weixin) receive notify on %v from %v", key, addr)
+	var res = &NotifyBack{}
 	defer func() {
 		bys, _ := xml.Marshal(res)
 		hs.W.Write(bys)
@@ -274,42 +327,98 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 	conf := c.Conf[key]
 	if conf == nil {
 		err := fmt.Errorf("conf not found by key(%v)", key)
-		log.E("Client.Notify(Weixin) notify fail with error(%v)", err)
+		log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	var anyArgs = AnyNotifyArgs{}
+	var anyArgs = AnyArgs{}
 	var bys, err = hs.UnmarshalX_v(&anyArgs)
 	if err != nil {
-		log.E("Client.NativeNotify(Weixin) %v", err)
+		log.E("Client.PayNotifyH(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
 	err = anyArgs.VerifySign(conf, anyArgs["sign"])
 	if err != nil {
-		log.E("Client.NativeNotify(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
+		log.E("Client.PayNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	var native = &NaviteNotifyArgs{}
+	var native = &PayNotifyArgs{}
 	err = xml.Unmarshal(bys, native)
 	if err != nil {
-		log.E("Client.NativeNotify(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
+		log.E("Client.PayNotifyH(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	slog("Client.NativeNotify(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
-	err = c.H.OnNotify(c, hs, native)
+	slog("Client.PayNotifyH(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
+	err = c.H.OnPayNotify(c, hs, native)
 	if err == nil {
 		res.ReturnCode = "SUCCESS"
 		res.ReturnMsg = "OK"
 		return routing.HRES_RETURN
 	}
-	log.E("Client.Notify(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+	log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+	res.ReturnCode = "FAIL"
+	res.ReturnMsg = err.Error()
+	return routing.HRES_RETURN
+}
+
+func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
+	_, key := path.Split(hs.R.URL.Path)
+	var addr = hs.R.Header.Get("X-Real-IP")
+	if len(addr) < 1 {
+		addr = hs.R.RemoteAddr
+	}
+	log.D("Client.RefundNotifyH(Weixin) receive notify on %v from %v", key, addr)
+	var res = &NotifyBack{}
+	defer func() {
+		bys, _ := xml.Marshal(res)
+		hs.W.Write(bys)
+	}()
+	conf := c.Conf[key]
+	if conf == nil {
+		err := fmt.Errorf("conf not found by key(%v)", key)
+		log.E("Client.RefundNotifyH(Weixin) notify fail with error(%v)", err)
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
+	var anyArgs = AnyArgs{}
+	var bys, err = hs.UnmarshalX_v(&anyArgs)
+	if err != nil {
+		log.E("Client.RefundNotifyH(Weixin) %v", err)
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
+	err = anyArgs.VerifySign(conf, anyArgs["sign"])
+	if err != nil {
+		log.E("Client.RefundNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
+	var native = &RefundNotifyArgs{}
+	err = xml.Unmarshal(bys, native)
+	if err != nil {
+		log.E("Client.RefundNotifyH(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
+		res.ReturnCode = "FAIL"
+		res.ReturnMsg = err.Error()
+		return routing.HRES_RETURN
+	}
+	slog("Client.RefundNotifyH(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
+	err = c.H.OnRefundNotify(c, hs, native)
+	if err == nil {
+		res.ReturnCode = "SUCCESS"
+		res.ReturnMsg = "OK"
+		return routing.HRES_RETURN
+	}
+	log.E("Client.RefundNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
 	res.ReturnCode = "FAIL"
 	res.ReturnMsg = err.Error()
 	return routing.HRES_RETURN
@@ -317,6 +426,7 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {
 	c.Pre = pre
-	mux.HFunc("^"+pre+"/notify/[^/]*(\\?.*)?$", c.Notify)
+	mux.HFunc("^"+pre+"/notify/pay/[^/]*(\\?.*)?$", c.PayNotifyH)
+	mux.HFunc("^"+pre+"/notify/refund/[^/]*(\\?.*)?$", c.RefundNotifyH)
 	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
 }

@@ -32,8 +32,8 @@ func (c *Conf) Md5Sign(data string) string {
 func (c *Conf) Md5SignV(o interface{}) string {
 	var args = url.Values{}
 	switch o.(type) {
-	case AnyNotifyArgs:
-		for key, val := range o.(AnyNotifyArgs) {
+	case AnyArgs:
+		for key, val := range o.(AnyArgs) {
 			if key == "sign" {
 				continue
 			}
