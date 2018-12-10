@@ -355,7 +355,7 @@ func (c *Client) PayNotifyH(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	slog("Client.PayNotifyH(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
+	slog("Client.PayNotifyH(Weixin) receive verified notify from address(%v), the data is:\n%v", addr, string(bys))
 	err = c.H.OnPayNotify(c, hs, native)
 	if err == nil {
 		res.ReturnCode = "SUCCESS"
