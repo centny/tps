@@ -133,7 +133,7 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 			SignType:  "MD5",
 			Package:   "prepay_id=" + back["prepay_id"],
 			NonceStr:  strings.ToUpper(util.UUID()),
-			TimeStamp: util.NowSec() / 1000,
+			TimeStamp: fmt.Sprintf("%v", util.NowSec()/1000),
 		}
 		args.SetSign(conf)
 	}
