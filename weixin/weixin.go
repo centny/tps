@@ -72,10 +72,10 @@ func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string,
 	return c.CreateOrderV(args, conf)
 }
 
-func (c *Client) CreateRefundOrder(key, notify_url, trade_no, out_refund_no string, total_fee, refund_fee int) (AnyArgs, error) {
+func (c *Client) CreateRefundOrder(key, notify_url, out_trade_no, out_refund_no string, total_fee, refund_fee int) (AnyArgs, error) {
 	var args = &RefundArgs{}
 	args.NotifyURL = notify_url
-	args.TransactionID = trade_no
+	args.OutTradeNo = out_trade_no
 	args.OutRefundNo = out_refund_no
 	args.TotalFee = total_fee
 	args.RefundFee = refund_fee
