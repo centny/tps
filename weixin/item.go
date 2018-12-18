@@ -322,6 +322,13 @@ type AccessTokenReturn struct {
 	Message      string `json:"errmsg"`
 }
 
+type TicketReturn struct {
+	ExpiresIn int    `json:"expires_in"`
+	Ticket    string `json:"ticket"`
+	Code      int    `json:"errcode"`
+	Message   string `json:"errmsg"`
+}
+
 type UserinfoBack struct {
 	OpenID     string   `json:"openid"`
 	Nickname   string   `json:"nickname"`

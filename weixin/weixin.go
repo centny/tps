@@ -10,7 +10,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/garyburd/redigo/redis"
+
+	"github.com/Centny/rediscache"
 
 	"github.com/Centny/gwf/log"
 	"github.com/Centny/gwf/routing"
@@ -153,7 +158,7 @@ func (c *Client) GenerateAuthURL(key, scope, redirect, state string) (uri string
 	return
 }
 
-func (c *Client) LoadAccessToken(key, code string) (ret *AccessTokenReturn, err error) {
+func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -162,6 +167,33 @@ func (c *Client) LoadAccessToken(key, code string) (ret *AccessTokenReturn, err 
 	var data string
 	for i := 0; i < 5; i++ {
 		data, err = util.HGet("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return
+	}
+	ret = &AccessTokenReturn{}
+	err = json.Unmarshal([]byte(data), ret)
+	if err != nil {
+		return
+	}
+	if ret.Code > 0 {
+		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
+	}
+	return
+}
+
+func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	var data string
+	for i := 0; i < 5; i++ {
+		data, err = util.HGet("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", conf.Appid, conf.AppSecret)
 		if err == nil {
 			break
 		}
@@ -197,6 +229,33 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoBac
 		return
 	}
 	ret = &UserinfoBack{}
+	err = json.Unmarshal([]byte(data), ret)
+	if err != nil {
+		return
+	}
+	if ret.Code > 0 {
+		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
+	}
+	return
+}
+
+func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketReturn, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	var data string
+	for i := 0; i < 5; i++ {
+		data, err = util.HGet("https: //api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=%v&type=%v", accessToken, ticketType)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return
+	}
+	ret = &TicketReturn{}
 	err = json.Unmarshal([]byte(data), ret)
 	if err != nil {
 		return
@@ -422,6 +481,56 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	res.ReturnCode = "FAIL"
 	res.ReturnMsg = err.Error()
 	return routing.HRES_RETURN
+}
+
+func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp, signature string, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	conn := rediscache.C()
+	defer conn.Close()
+	vals, err := redis.Strings(conn.Do(
+		"MGET",
+		fmt.Sprintf("%v_timestamp", key),
+		fmt.Sprintf("%v_jsapi_ticket", key),
+	))
+	if err != nil {
+		return
+	}
+	appid = conf.Appid
+	noncestr = util.UUID()
+	timestamp = fmt.Sprintf("%v", util.Now())
+	now := util.Now()
+	ts, _ := strconv.ParseInt(vals[0], 10, 64)
+	ticket := ""
+	if now-ts < 7200000 && len(vals[1]) > 0 {
+		ticket = vals[0]
+	} else {
+		var accessToken *AccessTokenReturn
+		accessToken, err = c.LoadBaseAccessToken(key)
+		if err != nil {
+			return
+		}
+		var ticketVal *TicketReturn
+		ticketVal, err = c.LoadTicket(key, "jsapi", accessToken.AccessToken)
+		if err != nil {
+			return
+		}
+		ticket = ticketVal.Ticket
+		_, err = conn.Do(
+			"MSET",
+			fmt.Sprintf("%v_timestamp", key), timestamp,
+			fmt.Sprintf("%v_jsapi_ticket", key), ticket,
+		)
+		if err != nil {
+			return
+		}
+	}
+	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url
+	signature, err = util.Sha1(data)
+	return
 }
 
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {
