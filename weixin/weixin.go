@@ -491,7 +491,7 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	return routing.HRES_RETURN
 }
 
-func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp, signature string, err error) {
+func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestamp, signature string, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -536,7 +536,8 @@ func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp
 			return
 		}
 	}
-	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url
+	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url.QueryEscape(turl)
+	log.D("load jsapi signature by %v", data)
 	signature = util.Sha1_b([]byte(data))
 	return
 }
