@@ -172,6 +172,8 @@ func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, 
 		}
 	}
 	if err != nil {
+		log.W("Client load user access token fail with %v", err)
+		err = fmt.Errorf("load user access token")
 		return
 	}
 	ret = &AccessTokenReturn{}
@@ -199,6 +201,8 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 		}
 	}
 	if err != nil {
+		log.W("Client load base access token fail with %v", err)
+		err = fmt.Errorf("load base access token")
 		return
 	}
 	ret = &AccessTokenReturn{}
@@ -226,6 +230,8 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoBac
 		}
 	}
 	if err != nil {
+		log.W("Client load user info fail with %v", err)
+		err = fmt.Errorf("load user fail")
 		return
 	}
 	ret = &UserinfoBack{}
@@ -253,6 +259,8 @@ func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketRet
 		}
 	}
 	if err != nil {
+		log.W("Client load ticket fail with %v", err)
+		err = fmt.Errorf("load ticket fail")
 		return
 	}
 	ret = &TicketReturn{}
