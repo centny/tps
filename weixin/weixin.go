@@ -536,7 +536,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 			return
 		}
 	}
-	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url.QueryEscape(turl)
+	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url.QueryUnescape(turl)
 	log.D("load jsapi signature by %v", data)
 	signature = util.Sha1_b([]byte(data))
 	return
