@@ -537,7 +537,7 @@ func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp
 		}
 	}
 	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url
-	signature, err = util.Sha1(data)
+	signature = util.Sha1_b([]byte(data))
 	return
 }
 
