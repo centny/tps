@@ -247,7 +247,7 @@ func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketRet
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https: //api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=%v&type=%v", accessToken, ticketType)
+		data, err = util.HGet("https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=%v&type=%v", accessToken, ticketType)
 		if err == nil {
 			break
 		}
