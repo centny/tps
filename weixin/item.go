@@ -416,21 +416,21 @@ type QueryRefundArgs struct {
 }
 
 type MpTemplateMessageMiniprogram struct {
-	Appid    string `json:"appid"`
-	PagePath string `json:"pagepath"`
+	Appid    string `json:"appid,omitempty"`
+	PagePath string `json:"pagepath,omitempty"`
 }
 
 type MpTemplateMessageData struct {
-	Value string `json:"value"`
-	Color string `json:"color"`
+	Value string `json:"value,omitempty"`
+	Color string `json:"color,omitempty"`
 }
 
 type MpTemplateMessage struct {
-	Appid        string                           `json:"appid"`
-	TemplateID   string                           `json:"template_id"`
-	URL          string                           `json:"url"`
-	MiniProgream MpTemplateMessageMiniprogram     `json:"miniprogram"`
-	Data         map[string]MpTemplateMessageData `json:"data"`
+	Appid        string                           `json:"appid,omitempty"`
+	TemplateID   string                           `json:"template_id,omitempty"`
+	URL          string                           `json:"url,omitempty"`
+	Data         map[string]MpTemplateMessageData `json:"data,omitempty"`
+	MiniProgream MpTemplateMessageMiniprogram     `json:"miniprogram,omitempty"`
 }
 
 type UniformSendArgs struct {
