@@ -242,7 +242,7 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 	}
 	_, err = conn.Do(
 		"MSET",
-		fmt.Sprintf("base_token_%v_timestamp", key), util.Now(),
+		fmt.Sprintf("base_token_%v_timestamp", key), util.Now()/1000,
 		fmt.Sprintf("base_token_%v_value", key), ret.AccessToken,
 	)
 	return
