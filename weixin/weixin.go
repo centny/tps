@@ -523,7 +523,7 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	return routing.HRES_RETURN
 }
 
-func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp, signature string, err error) {
+func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestamp, signature string, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -541,11 +541,11 @@ func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp
 	}
 	appid = conf.Appid
 	noncestr = util.UUID()
-	timestamp = fmt.Sprintf("%v", util.Now())
+	timestamp = fmt.Sprintf("%v", util.Now()/1000)
 	now := util.Now()
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	ticket := ""
-	if now-ts < 7200000 && len(vals[1]) > 0 {
+	if now-ts < 7200 && len(vals[1]) > 0 {
 		ticket = vals[0]
 	} else {
 		var accessToken *AccessTokenReturn
@@ -568,7 +568,9 @@ func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp
 			return
 		}
 	}
-	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url
+	murl, _ := url.QueryUnescape(turl)
+	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + murl
+	log.D("load jsapi signature by %v", data)
 	signature = util.Sha1_b([]byte(data))
 	return
 }
