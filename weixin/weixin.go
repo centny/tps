@@ -577,7 +577,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 	return
 }
 
-func (c *Client) UniformSend(key, touser string, template *MpTemplateMessage) (err error) {
+func (c *Client) MessageSend(key, touser string, template *MpTemplateMessage) (err error) {
 	accessToken, err := c.LoadBaseAccessToken(key)
 	if err != nil {
 		return
@@ -585,7 +585,7 @@ func (c *Client) UniformSend(key, touser string, template *MpTemplateMessage) (e
 	var data util.Map
 	for i := 0; i < 5; i++ {
 		_, data, err = util.HPostN2(
-			"https://api.weixin.qq.com/cgi-bin/message/wxopen/template/uniform_send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
+			"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
 			bytes.NewBufferString(util.S2Json(util.Map{
 				"touser":          touser,
 				"mp_template_msg": template,
@@ -611,7 +611,7 @@ func (c *Client) UniformSendRunner() {
 	c.UniformSendRunning = true
 	for c.UniformSendRunning {
 		args := <-c.UniformSendQueue
-		err := c.UniformSend(args.Key, args.ToUser, &args.Message)
+		err := c.MessageSend(args.Key, args.ToUser, &args.Message)
 		if err != nil {
 			log.W("UniformSendRunner send message by key:%v,touser:%v,message:%v fail with %v", args.Key, args.ToUser, util.S2Json(args.Message), err)
 		} else {
