@@ -414,3 +414,27 @@ type QueryRefundArgs struct {
 	// 偏移量，当部分退款次数超过10次时可使用，表示返回的查询结果从这个偏移量开始取记录
 	Offset int `xml:"offset" json:"offset"`
 }
+
+type MpTemplateMessageMiniprogram struct {
+	Appid    string `json:"appid"`
+	PagePath string `json:"pagepath"`
+}
+
+type MpTemplateMessageData struct {
+	Value string `json:"value"`
+	Color string `json:"color"`
+}
+
+type MpTemplateMessage struct {
+	Appid        string                           `json:"appid"`
+	TemplateID   string                           `json:"template_id"`
+	URL          string                           `json:"url"`
+	MiniProgream MpTemplateMessageMiniprogram     `json:"miniprogram"`
+	Data         map[string]MpTemplateMessageData `json:"data"`
+}
+
+type UniformSendArgs struct {
+	Key     string
+	ToUser  string
+	Message MpTemplateMessage
+}

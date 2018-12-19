@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/garyburd/redigo/redis"
 
@@ -36,17 +37,23 @@ type Client struct {
 	Pre  string
 	Tmp  string
 	CmdF string
+
+	baseAccessTokenLck sync.RWMutex
+	UniformSendRunning bool
+	UniformSendQueue   chan *UniformSendArgs
 }
 
 func NewClient(unified, query, host string, h Evh) *Client {
 	return &Client{
-		UnifiedOrder: unified,
-		QueryOrder:   query,
-		H:            h,
-		Host:         host,
-		Tmp:          "/tmp/weixin",
-		CmdF:         "/usr/local/bin/qrencode %v -o %v",
-		Conf:         map[string]*Conf{},
+		UnifiedOrder:       unified,
+		QueryOrder:         query,
+		H:                  h,
+		Host:               host,
+		Tmp:                "/tmp/weixin",
+		CmdF:               "/usr/local/bin/qrencode %v -o %v",
+		Conf:               map[string]*Conf{},
+		baseAccessTokenLck: sync.RWMutex{},
+		UniformSendQueue:   make(chan *UniformSendArgs, 10000),
 	}
 }
 
@@ -193,6 +200,25 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 		err = fmt.Errorf("conf not found by key(%v)", key)
 		return
 	}
+	c.baseAccessTokenLck.Lock()
+	defer c.baseAccessTokenLck.Unlock()
+	conn := rediscache.C()
+	defer conn.Close()
+	vals, err := redis.Strings(conn.Do(
+		"MGET",
+		fmt.Sprintf("base_token_%v_timestamp", key),
+		fmt.Sprintf("base_token_%v_value", key),
+	))
+	if err != nil && err != redis.ErrNil {
+		return
+	}
+	ts, _ := strconv.ParseInt(vals[0], 10, 64)
+	if util.Now()/1000-ts < 7200 && len(vals[1]) > 0 {
+		ret = &AccessTokenReturn{
+			AccessToken: vals[1],
+		}
+		return
+	}
 	var data string
 	for i := 0; i < 5; i++ {
 		data, err = util.HGet("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", conf.Appid, conf.AppSecret)
@@ -212,7 +238,13 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 	}
 	if ret.Code > 0 {
 		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
+		return
 	}
+	_, err = conn.Do(
+		"MSET",
+		fmt.Sprintf("base_token_%v_timestamp", key), util.Now(),
+		fmt.Sprintf("base_token_%v_value", key), ret.AccessToken,
+	)
 	return
 }
 
@@ -539,6 +571,51 @@ func (c *Client) LoadJsapiSignature(key, url string) (appid, noncestr, timestamp
 	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + url
 	signature = util.Sha1_b([]byte(data))
 	return
+}
+
+func (c *Client) UniformSend(key, touser string, template *MpTemplateMessage) (err error) {
+	accessToken, err := c.LoadBaseAccessToken(key)
+	if err != nil {
+		return
+	}
+	var data util.Map
+	for i := 0; i < 5; i++ {
+		_, data, err = util.HPostN2(
+			"https://api.weixin.qq.com/cgi-bin/message/wxopen/template/uniform_send", "application/json;charset=utf-8",
+			bytes.NewBufferString(util.S2Json(util.Map{
+				"access_token":    accessToken.AccessToken,
+				"touser":          touser,
+				"mp_template_msg": template,
+			})),
+		)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		log.W("Client uniform send fail with %v", err)
+		err = fmt.Errorf("uniform send fail")
+		return
+	}
+	if data.IntVal("errcode") != 0 {
+		err = fmt.Errorf("ret %v", util.S2Json(data))
+	}
+	return
+}
+
+func (c *Client) UniformSendRunner() {
+	log.I("UniformSendRunner is starting...")
+	c.UniformSendRunning = true
+	for c.UniformSendRunning {
+		args := <-c.UniformSendQueue
+		err := c.UniformSend(args.Key, args.ToUser, &args.Message)
+		if err != nil {
+			log.W("UniformSendRunner send message by key:%v,touser:%v,message:%v fail with %v", args.Key, args.ToUser, util.S2Json(args.Message), err)
+		} else {
+			log.D("UniformSendRunner send message by key:%v,touser:%v,message:%v is success", args.Key, args.ToUser, util.S2Json(args.Message))
+		}
+	}
+	log.I("UniformSendRunner is stopped")
 }
 
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {
