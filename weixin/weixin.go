@@ -217,6 +217,7 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 		ret = &AccessTokenReturn{
 			AccessToken: vals[1],
 		}
+		log.D("Client load base acess token from cache with %v", ret.AccessToken)
 		return
 	}
 	var data string
@@ -240,6 +241,7 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
 		return
 	}
+	log.D("Client require new base acess token success with %v", ret.AccessToken)
 	_, err = conn.Do(
 		"MSET",
 		fmt.Sprintf("base_token_%v_timestamp", key), util.Now()/1000,
@@ -583,9 +585,8 @@ func (c *Client) UniformSend(key, touser string, template *MpTemplateMessage) (e
 	var data util.Map
 	for i := 0; i < 5; i++ {
 		_, data, err = util.HPostN2(
-			"https://api.weixin.qq.com/cgi-bin/message/wxopen/template/uniform_send", "application/json;charset=utf-8",
+			"https://api.weixin.qq.com/cgi-bin/message/wxopen/template/uniform_send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
 			bytes.NewBufferString(util.S2Json(util.Map{
-				"access_token":    accessToken.AccessToken,
 				"touser":          touser,
 				"mp_template_msg": template,
 			})),
