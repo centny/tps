@@ -39,6 +39,7 @@ type Client struct {
 	CmdF string
 
 	baseAccessTokenLck sync.RWMutex
+	jsapiTicketLck     sync.RWMutex
 	UniformSendRunning bool
 	UniformSendQueue   chan *UniformSendArgs
 }
@@ -53,6 +54,7 @@ func NewClient(unified, query, host string, h Evh) *Client {
 		CmdF:               "/usr/local/bin/qrencode %v -o %v",
 		Conf:               map[string]*Conf{},
 		baseAccessTokenLck: sync.RWMutex{},
+		jsapiTicketLck:     sync.RWMutex{},
 		UniformSendQueue:   make(chan *UniformSendArgs, 10000),
 	}
 }
@@ -212,8 +214,9 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 	if err != nil && err != redis.ErrNil {
 		return
 	}
+	now := util.Now() / 1000
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
-	if util.Now()/1000-ts < 7200 && len(vals[1]) > 0 {
+	if now-ts < 6000 && len(vals[1]) > 0 {
 		ret = &AccessTokenReturn{
 			AccessToken: vals[1],
 		}
@@ -531,6 +534,8 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 		err = fmt.Errorf("conf not found by key(%v)", key)
 		return
 	}
+	c.jsapiTicketLck.Lock()
+	defer c.jsapiTicketLck.Unlock()
 	conn := rediscache.C()
 	defer conn.Close()
 	vals, err := redis.Strings(conn.Do(
@@ -543,11 +548,11 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 	}
 	appid = conf.Appid
 	noncestr = util.UUID()
-	timestamp = fmt.Sprintf("%v", util.Now()/1000)
-	now := util.Now()
+	now := util.Now() / 1000
+	timestamp = fmt.Sprintf("%v", now)
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	ticket := ""
-	if now-ts < 7200 && len(vals[1]) > 0 {
+	if now-ts < 6000 && len(vals[1]) > 0 {
 		ticket = vals[0]
 	} else {
 		var accessToken *AccessTokenReturn
