@@ -426,7 +426,6 @@ type MpTemplateMessageData struct {
 }
 
 type MpTemplateMessage struct {
-	Appid      string                           `json:"appid,omitempty"`
 	TemplateID string                           `json:"template_id,omitempty"`
 	URL        string                           `json:"url,omitempty"`
 	Data       map[string]MpTemplateMessageData `json:"data,omitempty"`
