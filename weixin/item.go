@@ -416,8 +416,8 @@ type QueryRefundArgs struct {
 }
 
 type MpTemplateMessageMiniprogram struct {
-	Appid    string `json:"appid,omitempty"`
-	PagePath string `json:"pagepath,omitempty"`
+	Appid string `json:"appid,omitempty"`
+	Path  string `json:"path,omitempty"`
 }
 
 type MpTemplateMessageData struct {
