@@ -627,9 +627,9 @@ func (c *Client) UniformSendRunner() {
 		args := <-c.UniformSendQueue
 		err := c.MessageSend(args.Key, &args.Message)
 		if err != nil {
-			log.W("UniformSendRunner send message by key:%v,touser:%v,message:%v fail with %v", args.Key, util.S2Json(args.Message), err)
+			log.W("UniformSendRunner send message by key:%v,message:%v fail with %v", args.Key, util.S2Json(args.Message), err)
 		} else {
-			log.D("UniformSendRunner send message by key:%v,touser:%v,message:%v is success", args.Key, util.S2Json(args.Message))
+			log.D("UniformSendRunner send message by key:%v,message:%v is success", args.Key, util.S2Json(args.Message))
 		}
 	}
 	log.I("UniformSendRunner is stopped")
