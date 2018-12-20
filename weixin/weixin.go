@@ -144,6 +144,7 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 	if err == nil {
 		args = &OrderH5Args{
 			Appid:     conf.Appid,
+			MpAppid:   conf.MpAppid,
 			SignType:  "MD5",
 			Package:   "prepay_id=" + back["prepay_id"],
 			NonceStr:  strings.ToUpper(util.UUID()),
