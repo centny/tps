@@ -433,7 +433,7 @@ type MpTemplateMessage struct {
 }
 
 type UniformSendArgs struct {
-	Key     string
-	ToUser  string
-	Message MpTemplateMessage
+	Key     string            `json:"-"`
+	ToUser  string            `json:"touser"`
+	Message MpTemplateMessage `json:"mp_template_msg"`
 }

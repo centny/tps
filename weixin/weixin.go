@@ -587,14 +587,15 @@ func (c *Client) MessageSend(key, touser string, template *MpTemplateMessage) (e
 	if err != nil {
 		return
 	}
+	args := util.S2Json(util.Map{
+		"touser":          touser,
+		"mp_template_msg": template,
+	})
 	var data util.Map
 	for i := 0; i < 5; i++ {
 		_, data, err = util.HPostN2(
 			"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
-			bytes.NewBufferString(util.S2Json(util.Map{
-				"touser":          touser,
-				"mp_template_msg": template,
-			})),
+			bytes.NewBufferString(args),
 		)
 		if err == nil {
 			break
@@ -606,7 +607,7 @@ func (c *Client) MessageSend(key, touser string, template *MpTemplateMessage) (e
 		return
 	}
 	if data.IntVal("errcode") != 0 {
-		err = fmt.Errorf("ret %v", util.S2Json(data))
+		err = fmt.Errorf("ret %v, args \n%v", util.S2Json(data), args)
 	}
 	return
 }
