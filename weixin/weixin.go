@@ -577,6 +577,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 			if err != nil {
 				return
 			}
+			break
 		}
 	}
 	murl, _ := url.QueryUnescape(turl)
@@ -614,8 +615,8 @@ func (c *Client) MessageSend(key string, template *MpTemplateMessage) (err error
 		}
 		if data.IntVal("errcode") != 0 {
 			err = fmt.Errorf("ret %v, args \n%v", util.S2Json(data), args)
-			return
 		}
+		break
 	}
 	return
 }
