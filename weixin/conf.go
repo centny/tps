@@ -11,11 +11,13 @@ import (
 )
 
 type Conf struct {
-	Appid      string
-	Mchid      string
-	Key        string
-	AppSecret  string
-	MessageURL string
+	Appid       string
+	Mchid       string
+	Key         string
+	AppSecret   string
+	MessageURL  string
+	MpAppid     string
+	MpAppSecret string
 }
 
 func (c *Conf) Load(appid, mchid, key, appsecret string) error {
