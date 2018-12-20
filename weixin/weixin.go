@@ -586,11 +586,8 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 	return
 }
 
-func (c *Client) MessageSend(key, touser string, template *MpTemplateMessage) (err error) {
-	args := util.S2Json(util.Map{
-		"touser":          touser,
-		"mp_template_msg": template,
-	})
+func (c *Client) MessageSend(key string, template *MpTemplateMessage) (err error) {
+	args := util.S2Json(template)
 	var accessToken *AccessTokenReturn
 	for i := 0; i < 2; i++ {
 		accessToken, err = c.LoadBaseAccessToken(key, i == 0)
@@ -628,11 +625,11 @@ func (c *Client) UniformSendRunner() {
 	c.UniformSendRunning = true
 	for c.UniformSendRunning {
 		args := <-c.UniformSendQueue
-		err := c.MessageSend(args.Key, args.ToUser, &args.Message)
+		err := c.MessageSend(args.Key, &args.Message)
 		if err != nil {
-			log.W("UniformSendRunner send message by key:%v,touser:%v,message:%v fail with %v", args.Key, args.ToUser, util.S2Json(args.Message), err)
+			log.W("UniformSendRunner send message by key:%v,touser:%v,message:%v fail with %v", args.Key, util.S2Json(args.Message), err)
 		} else {
-			log.D("UniformSendRunner send message by key:%v,touser:%v,message:%v is success", args.Key, args.ToUser, util.S2Json(args.Message))
+			log.D("UniformSendRunner send message by key:%v,touser:%v,message:%v is success", args.Key, util.S2Json(args.Message))
 		}
 	}
 	log.I("UniformSendRunner is stopped")

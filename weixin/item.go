@@ -428,11 +428,11 @@ type MpTemplateMessageData struct {
 type MpTemplateMessage struct {
 	TemplateID string                           `json:"template_id,omitempty"`
 	URL        string                           `json:"url,omitempty"`
+	ToUser     string                           `json:"touser"`
 	Data       map[string]MpTemplateMessageData `json:"data,omitempty"`
 }
 
 type UniformSendArgs struct {
 	Key     string            `json:"-"`
-	ToUser  string            `json:"touser"`
-	Message MpTemplateMessage `json:"mp_template_msg"`
+	Message MpTemplateMessage `json:"message"`
 }
