@@ -196,7 +196,7 @@ func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, 
 	return
 }
 
-func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err error) {
+func (c *Client) LoadBaseAccessToken(key string, cache bool) (ret *AccessTokenReturn, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -216,9 +216,10 @@ func (c *Client) LoadBaseAccessToken(key string) (ret *AccessTokenReturn, err er
 	}
 	now := util.Now() / 1000
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
-	if now-ts < 6000 && len(vals[1]) > 0 {
+	if cache && now-ts < 6000 && len(vals[1]) > 0 {
 		ret = &AccessTokenReturn{
 			AccessToken: vals[1],
+			Code:        0,
 		}
 		log.D("Client load base acess token from cache with %v", ret.AccessToken)
 		return
@@ -302,12 +303,6 @@ func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketRet
 	}
 	ret = &TicketReturn{}
 	err = json.Unmarshal([]byte(data), ret)
-	if err != nil {
-		return
-	}
-	if ret.Code > 0 {
-		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
-	}
 	return
 }
 
@@ -555,24 +550,33 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 	if now-ts < 6000 && len(vals[1]) > 0 {
 		ticket = vals[0]
 	} else {
-		var accessToken *AccessTokenReturn
-		accessToken, err = c.LoadBaseAccessToken(key)
-		if err != nil {
-			return
-		}
-		var ticketVal *TicketReturn
-		ticketVal, err = c.LoadTicket(key, "jsapi", accessToken.AccessToken)
-		if err != nil {
-			return
-		}
-		ticket = ticketVal.Ticket
-		_, err = conn.Do(
-			"MSET",
-			fmt.Sprintf("%v_timestamp", key), timestamp,
-			fmt.Sprintf("%v_jsapi_ticket", key), ticket,
-		)
-		if err != nil {
-			return
+		for i := 0; i < 2; i++ {
+			var accessToken *AccessTokenReturn
+			accessToken, err = c.LoadBaseAccessToken(key, i == 0)
+			if err != nil {
+				return
+			}
+			var ticketVal *TicketReturn
+			ticketVal, err = c.LoadTicket(key, "jsapi", accessToken.AccessToken)
+			if err != nil {
+				return
+			}
+			if i == 0 && ticketVal.Code == 40001 {
+				continue
+			}
+			if ticketVal.Code != 0 {
+				err = fmt.Errorf("ret %v", util.S2Json(ticketVal))
+				return
+			}
+			ticket = ticketVal.Ticket
+			_, err = conn.Do(
+				"MSET",
+				fmt.Sprintf("%v_timestamp", key), timestamp,
+				fmt.Sprintf("%v_jsapi_ticket", key), ticket,
+			)
+			if err != nil {
+				return
+			}
 		}
 	}
 	murl, _ := url.QueryUnescape(turl)
@@ -583,31 +587,38 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 }
 
 func (c *Client) MessageSend(key, touser string, template *MpTemplateMessage) (err error) {
-	accessToken, err := c.LoadBaseAccessToken(key)
-	if err != nil {
-		return
-	}
 	args := util.S2Json(util.Map{
 		"touser":          touser,
 		"mp_template_msg": template,
 	})
-	var data util.Map
-	for i := 0; i < 5; i++ {
-		_, data, err = util.HPostN2(
-			"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
-			bytes.NewBufferString(args),
-		)
-		if err == nil {
-			break
+	var accessToken *AccessTokenReturn
+	for i := 0; i < 2; i++ {
+		accessToken, err = c.LoadBaseAccessToken(key, i == 0)
+		if err != nil {
+			return
 		}
-	}
-	if err != nil {
-		log.W("Client uniform send fail with %v", err)
-		err = fmt.Errorf("uniform send fail")
-		return
-	}
-	if data.IntVal("errcode") != 0 {
-		err = fmt.Errorf("ret %v, args \n%v", util.S2Json(data), args)
+		var data util.Map
+		for i := 0; i < 5; i++ {
+			_, data, err = util.HPostN2(
+				"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
+				bytes.NewBufferString(args),
+			)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			log.W("Client uniform send fail with %v", err)
+			err = fmt.Errorf("uniform send fail")
+			return
+		}
+		if i == 0 && data.IntVal("errcode") == 40001 {
+			continue
+		}
+		if data.IntVal("errcode") != 0 {
+			err = fmt.Errorf("ret %v, args \n%v", util.S2Json(data), args)
+			return
+		}
 	}
 	return
 }
