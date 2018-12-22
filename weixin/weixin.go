@@ -548,7 +548,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	ticket := ""
 	if now-ts < 6000 && len(vals[1]) > 0 {
-		ticket = vals[0]
+		ticket = vals[1]
 	} else {
 		for i := 0; i < 2; i++ {
 			var accessToken *AccessTokenReturn
