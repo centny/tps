@@ -93,6 +93,7 @@ func (c *Client) CreateRefundOrder(key, notify_url, out_trade_no, out_refund_no 
 	args.OutRefundNo = out_refund_no
 	args.TotalFee = total_fee
 	args.RefundFee = refund_fee
+	args.NonceStr = util.UUID()
 	conf := c.Conf[key]
 	if conf == nil {
 		return nil, fmt.Errorf("conf not found by key(%v)", key)
