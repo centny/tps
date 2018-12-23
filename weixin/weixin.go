@@ -30,6 +30,7 @@ type Evh interface {
 type Client struct {
 	UnifiedOrder string
 	QueryOrder   string
+	RefundOrder  string
 	// Native       Conf
 	Conf map[string]*Conf
 	H    Evh
@@ -44,10 +45,11 @@ type Client struct {
 	UniformSendQueue   chan *UniformSendArgs
 }
 
-func NewClient(unified, query, host string, h Evh) *Client {
+func NewClient(host string, h Evh) *Client {
 	return &Client{
-		UnifiedOrder:       unified,
-		QueryOrder:         query,
+		UnifiedOrder:       "https://api.mch.weixin.qq.com/pay/unifiedorder",
+		QueryOrder:         "https://api.mch.weixin.qq.com/pay/orderquery",
+		RefundOrder:        "https://api.mch.weixin.qq.com/secapi/pay/refund",
 		H:                  h,
 		Host:               host,
 		Tmp:                "/tmp/weixin",
@@ -384,7 +386,7 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 		return nil, err
 	}
 	slog("Client.CreateRefundOrderV(Weixin) do create order by data:\n%v", string(bys))
-	code, res, err := util.HPostN(c.UnifiedOrder, "application/xml", bytes.NewBuffer(bys))
+	code, res, err := util.HPostN(c.RefundOrder, "application/xml", bytes.NewBuffer(bys))
 	if err != nil {
 		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
 		return nil, err
