@@ -345,6 +345,7 @@ type UserinfoBack struct {
 }
 
 type RefundArgs struct {
+	XMLName xml.Name `xml:"xml"`
 	//公众账号ID	appid	是	String(32)	wx8888888888888888	微信分配的公众账号ID（企业号corpid即为此appId）
 	Appid string `xml:"appid" json:"appid"`
 	//商户号	mch_id	是	String(32)	1900000109	微信支付分配的商户号
