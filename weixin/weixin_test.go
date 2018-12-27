@@ -15,7 +15,11 @@ import (
 type test_h struct {
 }
 
-func (t *test_h) OnNotify(c *Client, hs *routing.HTTPSession, nativ *NaviteNotifyArgs) error {
+func (t *test_h) OnPayNotify(c *Client, hs *routing.HTTPSession, native *PayNotifyArgs) error {
+	return nil
+}
+
+func (t *test_h) OnRefundNotify(c *Client, hs *routing.HTTPSession, nativ *RefundNotifyArgs) error {
 	return nil
 }
 
@@ -52,12 +56,7 @@ func TestVersion(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	var wx = NewClient(
-		"https://api.mch.weixin.qq.com/pay/unifiedorder",
-		"https://api.mch.weixin.qq.com/pay/orderquery",
-		"",
-		&test_h{},
-	)
+	var wx = NewClient("", &test_h{})
 	conf := &Conf{}
 	conf.Load(
 		"wxd8ed718345ac5d25", "1313941701",
@@ -71,7 +70,7 @@ func TestVersion(t *testing.T) {
 	}
 	fmt.Println("--->", native)
 	ts := httptest.NewMuxServer()
-	ts.Mux.HFunc("^/native.*$", wx.Notify)
+	ts.Mux.HFunc("^/native.*$", wx.PayNotifyH)
 	res, err := ts.PostN("/native", "text/xml", bytes.NewBufferString(data))
 	fmt.Println(res, err)
 }

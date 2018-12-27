@@ -1,6 +1,9 @@
 package weixin
 
 import (
+	"crypto/aes"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -170,7 +173,7 @@ func (p *PayNotifyArgs) VerifySign(conf *Conf, sign string) error {
 	return util.Err("md5 verify fail")
 }
 
-type RefundNotifyArgs struct {
+type RefundNotifyInfo struct {
 	// 返回状态码	return_code	是	String(16)	SUCCESS
 	// SUCCESS/FAIL
 	// 此字段是通信标识，非交易标识，交易是否成功需要查看result_code来判断
@@ -184,12 +187,36 @@ type RefundNotifyArgs struct {
 	Appid string `xml:"appid"`
 	// 商户号	mch_id	是	String(32)	1900000109	微信支付分配的商户号
 	Mchid string `xml:"mch_id"`
-	// 设备号	device_info	否	String(32)	013467007045764	微信支付分配的终端设备号，
-	DeviceInfo string `xml:"device_info"`
 	// 随机字符串	nonce_str	是	String(32)	5K8264ILTKCH16CQ2502SI8ZNMTM67VS	随机字符串，不长于32位
 	NonceStr string `xml:"nonce_str"`
 	// 签名	sign	是	String(32)	C380BEC2BFD727A4B6845133519F3AD6	签名，详见签名算法
-	Sign string `xml:"req_info"`
+	ReqInfo string `xml:"req_info"`
+}
+
+func (r *RefundNotifyInfo) Decrypt(conf *Conf) (args *RefundNotifyArgs, err error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(r.ReqInfo)
+	if err != nil {
+		return
+	}
+	md5Hash := md5.New()
+	md5Hash.Write([]byte(conf.AppSecret))
+	key := fmt.Sprintf("%x", md5Hash.Sum(nil))
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return
+	}
+	dst := make([]byte, len(ciphertext))
+	remain := 0
+	for remain < len(ciphertext) {
+		block.Decrypt(dst[remain:], ciphertext[remain:])
+		remain += block.BlockSize()
+	}
+	args = &RefundNotifyArgs{}
+	err = xml.Unmarshal(dst, args)
+	return
+}
+
+type RefundNotifyArgs struct {
 	// 微信支付订单号	transaction_id	是	String(32)	1217752501201407033233368018	微信支付订单号
 	TransactionID string `xml:"transaction_id"`
 	// 商户订单号	out_trade_no	是	String(32)	1212321211201407033568112322	商户系统的订单号，与请求一致。
