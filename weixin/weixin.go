@@ -75,13 +75,14 @@ func (c *Client) C(key string) *Conf {
 // 	return c.CreateOrder("Native", notify_url, out_trade_no, body, total_fee)
 // }
 
-func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee int, trade string) (AnyArgs, error) {
+func (c *Client) CreateOrder(key, openid, notify_url, out_trade_no, body string, total_fee int, trade, attach string) (AnyArgs, error) {
 	var args = &OrderArgs{}
 	args.NotifyURL, args.OutTradeNo = notify_url, out_trade_no
 	args.Body = body
 	args.TotalFee = total_fee
 	args.TradeType = trade
 	args.Openid = openid
+	args.Attach = attach
 	conf := c.Conf[key]
 	if conf == nil {
 		return nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -105,7 +106,7 @@ func (c *Client) CreateRefundOrder(key, notify_url, out_trade_no, out_refund_no 
 }
 
 func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total_fee int) (qr string, back AnyArgs, err error) {
-	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_NATIVE)
+	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_NATIVE, "")
 	if err != nil {
 		return
 	}
@@ -124,7 +125,7 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
 	}
-	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_APP)
+	back, err = c.CreateOrder(key, "", notify_url, out_trade_no, body, total_fee, TT_APP, "")
 	if err == nil {
 		args = &OrderAppArgs{
 			Appid:     conf.Appid,
@@ -139,12 +140,12 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 	return
 }
 
-func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee int) (args *OrderH5Args, back AnyArgs, err error) {
+func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body string, total_fee int, attach string) (args *OrderH5Args, back AnyArgs, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		return nil, nil, fmt.Errorf("conf not found by key(%v)", key)
 	}
-	back, err = c.CreateOrder(key, openid, notify_url, out_trade_no, body, total_fee, TT_JSAPI)
+	back, err = c.CreateOrder(key, openid, notify_url, out_trade_no, body, total_fee, TT_JSAPI, attach)
 	if err == nil {
 		args = &OrderH5Args{
 			Appid:     conf.Appid,
