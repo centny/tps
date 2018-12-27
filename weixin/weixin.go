@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -386,17 +387,26 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 		return nil, err
 	}
 	slog("Client.CreateRefundOrderV(Weixin) do create order by data:\n%v", string(bys))
-	code, res, err := util.HPostN(c.RefundOrder, "application/xml", bytes.NewBuffer(bys))
+	req, err := http.NewRequest("POST", c.RefundOrder, bytes.NewBuffer(bys))
 	if err != nil {
-		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
 		return nil, err
 	}
-	if code != 200 {
-		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
+	req.Header.Set("Content-Type", "application/xml")
+	response, err := conf.ApiClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	res, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != 200 {
+		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, response.StatusCode)
 		return nil, err
 	}
 	var anyArgs = AnyArgs{}
-	err = xml.Unmarshal([]byte(res), anyArgs)
+	err = xml.Unmarshal([]byte(res), &anyArgs)
 	if err != nil {
 		err = util.Err("Client.CreateRefundOrderV xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err

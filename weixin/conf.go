@@ -2,6 +2,7 @@ package weixin
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -18,6 +19,7 @@ type Conf struct {
 	MessageURL  string
 	MpAppid     string
 	MpAppSecret string
+	ApiClient   *http.Client
 }
 
 func (c *Conf) Load(appid, mchid, key, appsecret string) error {
