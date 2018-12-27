@@ -500,25 +500,17 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	var anyArgs = AnyArgs{}
-	var bys, err = hs.UnmarshalX_v(&anyArgs)
+	var refundInfo = &RefundNotifyInfo{}
+	var bys, err = hs.UnmarshalX_v(&refundInfo)
 	if err != nil {
 		log.E("Client.RefundNotifyH(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
 	}
-	err = anyArgs.VerifySign(conf, anyArgs["sign"])
+	native, err := refundInfo.Decrypt(conf)
 	if err != nil {
 		log.E("Client.RefundNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
-		res.ReturnCode = "FAIL"
-		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
-	}
-	var native = &RefundNotifyArgs{}
-	err = xml.Unmarshal(bys, native)
-	if err != nil {
-		log.E("Client.RefundNotifyH(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
 		return routing.HRES_RETURN
