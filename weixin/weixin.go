@@ -172,6 +172,32 @@ func (c *Client) GenerateAuthURL(key, scope, redirect, state string) (uri string
 	return
 }
 
+func (c *Client) LoadJsCodeSession(key, code string) (openid, session string, err error) {
+	var conf = c.Conf[key]
+	if conf == nil {
+		err = fmt.Errorf("conf not found by key(%v)", key)
+		return
+	}
+	var data string
+	for i := 0; i < 5; i++ {
+		data, err = util.HGet("https://api.weixin.qq.com/sns/jscode2session?appid=%v&secret=%v&js_code=%v&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		log.W("Client load jscode2session fail with %v", err)
+		err = fmt.Errorf("load jscode2session")
+		return
+	}
+	res, err := util.Json2Map(data)
+	if err != nil {
+		return
+	}
+	openid, session = res.StrValP("/openid"), res.StrValP("/session_key")
+	return
+}
+
 func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {

@@ -371,6 +371,15 @@ type UserinfoBack struct {
 	Message    string   `json:"errmsg"`
 }
 
+type Userinfo struct {
+	AvatarURL string `json:"avatarUrl"`
+	City      string `json:"city"`
+	Country   string `json:"country"`
+	Gender    int    `json:"gender"`
+	NickName  string `json:"nickName"`
+	Province  string `json:"province"`
+}
+
 type RefundArgs struct {
 	XMLName xml.Name `xml:"xml"`
 	//公众账号ID	appid	是	String(32)	wx8888888888888888	微信分配的公众账号ID（企业号corpid即为此appId）
