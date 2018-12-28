@@ -2,11 +2,8 @@ package weixin
 
 import (
 	"bytes"
-	"encoding/xml"
 	"fmt"
 	"testing"
-
-	"github.com/Centny/gwf/routing/httptest"
 
 	"github.com/Centny/gwf/routing"
 	"github.com/Centny/gwf/util"
@@ -26,54 +23,54 @@ func (t *test_h) OnRefundNotify(c *Client, hs *routing.HTTPSession, nativ *Refun
 func TestWeixin(t *testing.T) {
 }
 
-func TestVersion(t *testing.T) {
-	var data = `
-<xml><appid><![CDATA[wxd8ed718345ac5d25]]></appid>
-<bank_type><![CDATA[CFT]]></bank_type>
-<cash_fee><![CDATA[335]]></cash_fee>
-<coupon_count><![CDATA[1]]></coupon_count>
-<coupon_fee>15</coupon_fee>
-<coupon_fee_0><![CDATA[15]]></coupon_fee_0>
-<coupon_id_0><![CDATA[2000000036525300106]]></coupon_id_0>
-<fee_type><![CDATA[CNY]]></fee_type>
-<is_subscribe><![CDATA[N]]></is_subscribe>
-<mch_id><![CDATA[1313941701]]></mch_id>
-<nonce_str><![CDATA[5B35D1D7E13823185E000033]]></nonce_str>
-<openid><![CDATA[ocC1EuJ3Z5o-jOh1WyeADwkwfzQo]]></openid>
-<out_trade_no><![CDATA[201806291429430000000030]]></out_trade_no>
-<result_code><![CDATA[SUCCESS]]></result_code>
-<return_code><![CDATA[SUCCESS]]></return_code>
-<sign><![CDATA[E0DA50FDB9DEAEEFFE1798561F9F591C]]></sign>
-<time_end><![CDATA[20180629142948]]></time_end>
-<total_fee>350</total_fee>
-<trade_type><![CDATA[JSAPI]]></trade_type>
-<transaction_id><![CDATA[4200000120201806293440894332]]></transaction_id>
-</xml>
-	`
-	var native = AnyArgs{}
-	err := xml.Unmarshal([]byte(data), &native)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	var wx = NewClient("", &test_h{})
-	conf := &Conf{}
-	conf.Load(
-		"wxd8ed718345ac5d25", "1313941701",
-		"rp6h3aavmbcll1newi9jdqzfkjfl5ue8", "8185c1cc480bf09b02813f09e4cf52fa",
-	)
-	wx.Conf["native"] = conf
-	err = native.VerifySign(conf, fmt.Sprintf("%v", native["sign"]))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	fmt.Println("--->", native)
-	ts := httptest.NewMuxServer()
-	ts.Mux.HFunc("^/native.*$", wx.PayNotifyH)
-	res, err := ts.PostN("/native", "text/xml", bytes.NewBufferString(data))
-	fmt.Println(res, err)
-}
+// func TestVersion(t *testing.T) {
+// 	var data = `
+// <xml><appid><![CDATA[wxd8ed718345ac5d25]]></appid>
+// <bank_type><![CDATA[CFT]]></bank_type>
+// <cash_fee><![CDATA[335]]></cash_fee>
+// <coupon_count><![CDATA[1]]></coupon_count>
+// <coupon_fee>15</coupon_fee>
+// <coupon_fee_0><![CDATA[15]]></coupon_fee_0>
+// <coupon_id_0><![CDATA[2000000036525300106]]></coupon_id_0>
+// <fee_type><![CDATA[CNY]]></fee_type>
+// <is_subscribe><![CDATA[N]]></is_subscribe>
+// <mch_id><![CDATA[1313941701]]></mch_id>
+// <nonce_str><![CDATA[5B35D1D7E13823185E000033]]></nonce_str>
+// <openid><![CDATA[ocC1EuJ3Z5o-jOh1WyeADwkwfzQo]]></openid>
+// <out_trade_no><![CDATA[201806291429430000000030]]></out_trade_no>
+// <result_code><![CDATA[SUCCESS]]></result_code>
+// <return_code><![CDATA[SUCCESS]]></return_code>
+// <sign><![CDATA[E0DA50FDB9DEAEEFFE1798561F9F591C]]></sign>
+// <time_end><![CDATA[20180629142948]]></time_end>
+// <total_fee>350</total_fee>
+// <trade_type><![CDATA[JSAPI]]></trade_type>
+// <transaction_id><![CDATA[4200000120201806293440894332]]></transaction_id>
+// </xml>
+// 	`
+// 	var native = AnyArgs{}
+// 	err := xml.Unmarshal([]byte(data), &native)
+// 	if err != nil {
+// 		t.Error(err)
+// 		return
+// 	}
+// 	var wx = NewClient("", &test_h{})
+// 	conf := &Conf{}
+// 	conf.Load(
+// 		"wxd8ed718345ac5d25", "1313941701",
+// 		"rp6h3aavmbcll1newi9jdqzfkjfl5ue8", "8185c1cc480bf09b02813f09e4cf52fa",
+// 	)
+// 	wx.Conf["native"] = conf
+// 	err = native.VerifySign(conf, fmt.Sprintf("%v", native["sign"]))
+// 	if err != nil {
+// 		t.Error(err)
+// 		return
+// 	}
+// 	fmt.Println("--->", native)
+// 	ts := httptest.NewMuxServer()
+// 	ts.Mux.HFunc("^/native.*$", wx.PayNotifyH)
+// 	res, err := ts.PostN("/native", "text/xml", bytes.NewBufferString(data))
+// 	fmt.Println(res, err)
+// }
 
 func TestXx(t *testing.T) {
 	var data = `
@@ -95,3 +92,9 @@ func TestXx(t *testing.T) {
 `
 	fmt.Println(util.HPostN("https://api.mch.weixin.qq.com/pay/unifiedorder", "application/xml", bytes.NewBufferString(data)))
 }
+
+// func TestAesCbcDecrypt(t *testing.T) {
+// 	encrypted := "ts21DyMm9ylzkWATtVk0kmWLbI0W3sebuya1rE3pE+3aG4X/fL5JM6J5/tvH4BDwqGAhOezERoRZBsJbsLpJjoRLIGg8ClComJn6HALopxd+plCGQLzfv8JmFLPKnnimfU01hPWXCJOTfAC0FQUXV7Ro4S7ER+4xgbhlzsHbgqwb6t0YXh39v1Sju9HAwl8HPEtMpxr8F1lPA1G/lHNgUzbfAFkxZJihlQ0CtwwDxfhLAmLPoBpMDJ0/pxlzVco9sgiTVlCF35RskrFFWgqsRLCp1cFPPBEYE8Do7i9WMbwaQqRftl08xOCyAwOrUXJ5gbf/mxH0w+QBMCcsJw8c++T6tFTcUgOBWPzKVrrFhHjxNcgnaPOktyq2qMGUjfGIax76lHJFQG2YpbvNA+SISvJLZa+eJd+JnvMbNzU+fVmExJi8NqhAhHrtNWXxzHnrH7ohY+rTMW7dpU93ySdSuYtCpAJVbJPXudoLb3KrD/M="
+// 	iv := "7PiXtsoSyxDMi46rN3lCww=="
+// 	code:=
+// }

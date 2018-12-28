@@ -2,6 +2,9 @@ package weixin
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -172,7 +175,7 @@ func (c *Client) GenerateAuthURL(key, scope, redirect, state string) (uri string
 	return
 }
 
-func (c *Client) LoadJsCodeSession(key, code string) (openid, session string, err error) {
+func (c *Client) LoadJsCodeSession(key, code string) (openid, sessionKey string, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -194,7 +197,10 @@ func (c *Client) LoadJsCodeSession(key, code string) (openid, session string, er
 	if err != nil {
 		return
 	}
-	openid, session = res.StrValP("/openid"), res.StrValP("/session_key")
+	openid, sessionKey = res.StrValP("/openid"), res.StrValP("/session_key")
+	if len(openid) < 1 || len(sessionKey) < 1 {
+		err = fmt.Errorf("%v", data)
+	}
 	return
 }
 
@@ -673,4 +679,32 @@ func (c *Client) Hand(pre string, mux *routing.SessionMux) {
 	mux.HFunc("^"+pre+"/notify/pay/[^/]*(\\?.*)?$", c.PayNotifyH)
 	mux.HFunc("^"+pre+"/notify/refund/[^/]*(\\?.*)?$", c.RefundNotifyH)
 	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
+}
+
+func AesCbcDecrypt(key, encrypted, iv string) (decrypted string, err error) {
+	keyData, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return
+	}
+	encryptedData, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		return
+	}
+	ivData, err := base64.StdEncoding.DecodeString(iv)
+	if err != nil {
+		return
+	}
+	block, err := aes.NewCipher([]byte(keyData))
+	if err != nil {
+		return
+	}
+	decrypter := cipher.NewCBCDecrypter(block, ivData)
+	dst := make([]byte, len(encryptedData))
+	remain := 0
+	for remain < len(encryptedData) {
+		decrypter.CryptBlocks(dst[remain:], encryptedData[remain:])
+		remain += block.BlockSize()
+	}
+	decrypted = string(dst)
+	return
 }
