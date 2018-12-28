@@ -12,26 +12,17 @@ import (
 )
 
 type Conf struct {
-	Appid       string
-	Mchid       string
-	Key         string
-	AppSecret   string
-	MessageURL  string
-	MpAppid     string
-	MpAppSecret string
-	ApiClient   *http.Client
-}
-
-func (c *Conf) Load(appid, mchid, key, appsecret string) error {
-	if len(appid) < 1 || len(mchid) < 1 || len(key) < 1 || len(appsecret) < 1 {
-		return util.Err("having empty arguemts in appid/mchid/key/appsecret")
-	}
-	c.Appid, c.Mchid, c.Key, c.AppSecret = appid, mchid, key, appsecret
-	return nil
+	Appid      string
+	Mchid      string
+	AppSecret  string
+	PaySecret  string
+	MessageURL string
+	MpAppid    string
+	ApiClient  *http.Client
 }
 
 func (c *Conf) Md5Sign(data string) string {
-	return strings.ToUpper(util.Md5_b([]byte(data + "&key=" + c.Key)))
+	return strings.ToUpper(util.Md5_b([]byte(data + "&key=" + c.PaySecret)))
 }
 
 func (c *Conf) Md5SignV(o interface{}) string {
