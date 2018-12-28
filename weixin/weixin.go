@@ -694,17 +694,20 @@ func AesCbcDecrypt(key, encrypted, iv string) (decrypted string, err error) {
 	if err != nil {
 		return
 	}
-	block, err := aes.NewCipher([]byte(keyData))
+	decryptedData := make([]byte, len(encryptedData))
+	chiper, err := aes.NewCipher(keyData)
 	if err != nil {
 		return
 	}
-	decrypter := cipher.NewCBCDecrypter(block, ivData)
-	dst := make([]byte, len(encryptedData))
-	remain := 0
-	for remain < len(encryptedData) {
-		decrypter.CryptBlocks(dst[remain:], encryptedData[remain:])
-		remain += block.BlockSize()
-	}
-	decrypted = string(dst)
+	mode := cipher.NewCBCDecrypter(chiper, ivData)
+	mode.CryptBlocks(decryptedData, encryptedData)
+	decryptedData = PKCS7UnPadding(decryptedData)
+	decrypted = string(decryptedData)
 	return
+}
+
+func PKCS7UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
 }

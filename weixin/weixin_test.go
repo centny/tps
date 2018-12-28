@@ -93,8 +93,9 @@ func TestXx(t *testing.T) {
 	fmt.Println(util.HPostN("https://api.mch.weixin.qq.com/pay/unifiedorder", "application/xml", bytes.NewBufferString(data)))
 }
 
-// func TestAesCbcDecrypt(t *testing.T) {
-// 	encrypted := "ts21DyMm9ylzkWATtVk0kmWLbI0W3sebuya1rE3pE+3aG4X/fL5JM6J5/tvH4BDwqGAhOezERoRZBsJbsLpJjoRLIGg8ClComJn6HALopxd+plCGQLzfv8JmFLPKnnimfU01hPWXCJOTfAC0FQUXV7Ro4S7ER+4xgbhlzsHbgqwb6t0YXh39v1Sju9HAwl8HPEtMpxr8F1lPA1G/lHNgUzbfAFkxZJihlQ0CtwwDxfhLAmLPoBpMDJ0/pxlzVco9sgiTVlCF35RskrFFWgqsRLCp1cFPPBEYE8Do7i9WMbwaQqRftl08xOCyAwOrUXJ5gbf/mxH0w+QBMCcsJw8c++T6tFTcUgOBWPzKVrrFhHjxNcgnaPOktyq2qMGUjfGIax76lHJFQG2YpbvNA+SISvJLZa+eJd+JnvMbNzU+fVmExJi8NqhAhHrtNWXxzHnrH7ohY+rTMW7dpU93ySdSuYtCpAJVbJPXudoLb3KrD/M="
-// 	iv := "7PiXtsoSyxDMi46rN3lCww=="
-// 	code:=
-// }
+func TestAesCbcDecrypt(t *testing.T) {
+	var args = map[string]string{"encrypted": "k3ENa8TiNaLrS1R6R2H8qUo1WUDV3tkFpCz59wExTrkT0O6RvyL93AxVAmAatK/imSrxlxHrdVcajG7gRxwTPwvHQ2bNUbL1gfiW811B5qDvdbECZsq6OgDIrImygm5WbOiwGVb7rUkuDbp/+3z4uE4PEgcIUL6WdfSKiNTQC0CzLU1UdjlNzoJkYLIMRLM5NL/HGyt2IRnIdLZ4pqTjLoAQMMg9Ocx8rF/e/V51kwzc0TSAUOrRUBTESQZu/cUHRQKVpy+WzqZTZZh+S6K+JVsnn/QNIMTfKNEdnWnwYdBoEnMYzVjoiMNyDV3b8Bt+S5DPCyHei/aIFGmh8yAFbNno9X0KACvGg4E3YspaKbXITUPosLtMn/z61pzbmo+VM2Vep1CM3dhPtwvOo0MpUGN4Gj4tQj7R39YwW5hLo6KCoxjKJcQYu62gMFpkJ9cFLy0ROrKNl4Bq3pDqm8nFCClz2F9PtfTpZ4dMYQpuzC8=", "iv": "qvWg2ZYeYIZPfmwEXwtvuw==", "code": "023qdvW72z83vJ009YW723CwW72qdvWA"}
+	var key = "lxOzuXBgYbePrKx9Sq/HuQ=="
+	fmt.Println(AesCbcDecrypt(key, args["encrypted"], args["iv"]))
+	// data,err:=DesDecryption()
+}
