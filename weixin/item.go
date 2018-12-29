@@ -341,6 +341,7 @@ const (
 )
 
 type AccessTokenReturn struct {
+	UnionID      string `json:"unionid"`
 	OpenID       string `json:"openid"`
 	ExpiresIn    int    `json:"expires_in"`
 	AccessToken  string `json:"access_token"`
