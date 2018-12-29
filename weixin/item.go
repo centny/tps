@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -371,13 +372,23 @@ type UserinfoBack struct {
 	Message    string   `json:"errmsg"`
 }
 
-type Userinfo struct {
+type EncryptedUserinfo struct {
+	OpenID    string `json:"openId"`
+	UnionID   string `json:"unionID"`
 	AvatarURL string `json:"avatarUrl"`
 	City      string `json:"city"`
 	Country   string `json:"country"`
 	Gender    int    `json:"gender"`
 	NickName  string `json:"nickName"`
 	Province  string `json:"province"`
+}
+
+func (e *EncryptedUserinfo) Decrypt(key, iv, encrypted string) (err error) {
+	decrypted, err := AesCbcDecrypt(key, encrypted, iv)
+	if err == nil {
+		err = json.Unmarshal([]byte(decrypted), e)
+	}
+	return
 }
 
 type RefundArgs struct {
