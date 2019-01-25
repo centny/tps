@@ -200,7 +200,7 @@ func (r *RefundNotifyInfo) Decrypt(conf *Conf) (args *RefundNotifyArgs, err erro
 		return
 	}
 	md5Hash := md5.New()
-	md5Hash.Write([]byte(conf.AppSecret))
+	md5Hash.Write([]byte(conf.PaySecret))
 	key := fmt.Sprintf("%x", md5Hash.Sum(nil))
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
