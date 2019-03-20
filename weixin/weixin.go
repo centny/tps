@@ -513,6 +513,37 @@ func (c *Client) PayNotifyH(hs *routing.HTTPSession) routing.HResult {
 	return routing.HRES_RETURN
 }
 
+func (c *Client) ManualPayNotifyH(hs *routing.HTTPSession) routing.HResult {
+	_, key := path.Split(hs.R.URL.Path)
+	conf := c.Conf[key]
+	if conf == nil {
+		err := fmt.Errorf("conf not found by key(%v)", key)
+		log.E("Client.PayNotifyH(Weixin) manual pay notify fail with error(%v)", err)
+		return hs.MsgResErr2(10, "arg-err", err)
+	}
+	username, password, ok := hs.R.BasicAuth()
+	if !(len(conf.ManualUsername) > 0 && ok && username == conf.ManualUsername && password == conf.ManualPassword) {
+		err := fmt.Errorf("auth fail by key(%v)", key)
+		return hs.MsgResErr2(401, "auth-err", err)
+	}
+	var native = &PayNotifyArgs{}
+	bys, err := hs.UnmarshalX_v(native)
+	if err != nil {
+		return hs.MsgResErr2(1, "arg-err", err)
+	}
+	var addr = hs.R.Header.Get("X-Real-IP")
+	if len(addr) < 1 {
+		addr = hs.R.RemoteAddr
+	}
+	log.W("WeixinClient recieve manual pay notify for out_trade_no(%v) from %v", native.OutTradeNo, addr)
+	err = c.H.OnPayNotify(c, hs, native)
+	if err != nil {
+		log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+		return hs.MsgResErr2(2, "srv-err", err)
+	}
+	return hs.MsgRes("OK")
+}
+
 func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	_, key := path.Split(hs.R.URL.Path)
 	var addr = hs.R.Header.Get("X-Real-IP")
@@ -677,6 +708,7 @@ func (c *Client) UniformSendRunner() {
 func (c *Client) Hand(pre string, mux *routing.SessionMux) {
 	c.Pre = pre
 	mux.HFunc("^"+pre+"/notify/pay/[^/]*(\\?.*)?$", c.PayNotifyH)
+	mux.HFunc("^"+pre+"/manual/pay/[^/]*(\\?.*)?$", c.ManualPayNotifyH)
 	mux.HFunc("^"+pre+"/notify/refund/[^/]*(\\?.*)?$", c.RefundNotifyH)
 	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
 }

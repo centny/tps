@@ -12,13 +12,15 @@ import (
 )
 
 type Conf struct {
-	Appid      string
-	Mchid      string
-	AppSecret  string
-	PaySecret  string
-	MessageURL string
-	MpAppid    string
-	ApiClient  *http.Client
+	Appid          string
+	Mchid          string
+	AppSecret      string
+	PaySecret      string
+	MessageURL     string
+	MpAppid        string
+	ManualUsername string
+	ManualPassword string
+	ApiClient      *http.Client
 }
 
 func (c *Conf) Md5Sign(data string) string {
