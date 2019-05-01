@@ -367,9 +367,9 @@ func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (AnyArgs, error) {
 		err = util.Err("Client.CreateOrder xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
-	if ores["return_code"] != "SUCCESS" {
+	if ores["return_code"] != "SUCCESS" || ores["result_code"] != "SUCCESS" {
 		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
-			string(bys), ores["return_code"], ores["return_msg"], ores)
+			string(bys), ores["return_code"], ores["return_msg"], util.S2Json(ores))
 		return nil, err
 	}
 	err = ores.VerifySign(conf, ores["sign"])
