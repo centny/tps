@@ -592,7 +592,7 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	return routing.HRES_RETURN
 }
 
-func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestamp, signature string, err error) {
+func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr, timestamp, signature string, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -611,6 +611,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, noncestr, timestam
 		return
 	}
 	appid = conf.Appid
+	mpAppid = conf.MpAppid
 	noncestr = util.UUID()
 	now := util.Now() / 1000
 	timestamp = fmt.Sprintf("%v", now)
