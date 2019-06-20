@@ -351,6 +351,14 @@ type AccessTokenReturn struct {
 	Message      string `json:"errmsg"`
 }
 
+type Code2SessionReturn struct {
+	UnionID    string `json:"unionid"`
+	OpenID     string `json:"openid"`
+	SessionKey string `json:"session_key"`
+	Code       int    `json:"errcode"`
+	Message    string `json:"errmsg"`
+}
+
 type TicketReturn struct {
 	ExpiresIn int    `json:"expires_in"`
 	Ticket    string `json:"ticket"`
@@ -374,14 +382,17 @@ type UserinfoBack struct {
 }
 
 type EncryptedUserinfo struct {
-	OpenID    string `json:"openId"`
-	UnionID   string `json:"unionID"`
-	AvatarURL string `json:"avatarUrl"`
-	City      string `json:"city"`
-	Country   string `json:"country"`
-	Gender    int    `json:"gender"`
-	NickName  string `json:"nickName"`
-	Province  string `json:"province"`
+	OpenID          string `json:"openId"`
+	UnionID         string `json:"unionID"`
+	AvatarURL       string `json:"avatarUrl"`
+	City            string `json:"city"`
+	Country         string `json:"country"`
+	CountryCode     string `json:"86"`
+	Gender          int    `json:"gender"`
+	NickName        string `json:"nickName"`
+	Province        string `json:"province"`
+	PhoneNumber     string `json:"phoneNumber"`
+	PurePhoneNumber string `json:"purePhoneNumber"`
 }
 
 func (e *EncryptedUserinfo) Decrypt(key, iv, encrypted string) (err error) {

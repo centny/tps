@@ -47,6 +47,8 @@ type Client struct {
 	jsapiTicketLck     sync.RWMutex
 	UniformSendRunning bool
 	UniformSendQueue   chan *UniformSendArgs
+	AccessTokenTimeout int64
+	WeixinAPIServer    string
 }
 
 func NewClient(host string, h Evh) *Client {
@@ -62,6 +64,8 @@ func NewClient(host string, h Evh) *Client {
 		baseAccessTokenLck: sync.RWMutex{},
 		jsapiTicketLck:     sync.RWMutex{},
 		UniformSendQueue:   make(chan *UniformSendArgs, 10000),
+		AccessTokenTimeout: 6000 * 1000,
+		WeixinAPIServer:    "https://api.weixin.qq.com/",
 	}
 }
 
@@ -175,7 +179,7 @@ func (c *Client) GenerateAuthURL(key, scope, redirect, state string) (uri string
 	return
 }
 
-func (c *Client) LoadJsCodeSession(key, code string) (openid, sessionKey string, err error) {
+func (c *Client) LoadJsCodeSession(key, code string) (ret *Code2SessionReturn, err error) {
 	var conf = c.Conf[key]
 	if conf == nil {
 		err = fmt.Errorf("conf not found by key(%v)", key)
@@ -183,7 +187,7 @@ func (c *Client) LoadJsCodeSession(key, code string) (openid, sessionKey string,
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https://api.weixin.qq.com/sns/jscode2session?appid=%v&secret=%v&js_code=%v&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+		data, err = util.HGet("%v/sns/jscode2session?appid=%v&secret=%v&js_code=%v&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
 		if err == nil {
 			break
 		}
@@ -193,14 +197,8 @@ func (c *Client) LoadJsCodeSession(key, code string) (openid, sessionKey string,
 		err = fmt.Errorf("load jscode2session")
 		return
 	}
-	res, err := util.Json2Map(data)
-	if err != nil {
-		return
-	}
-	openid, sessionKey = res.StrValP("/openid"), res.StrValP("/session_key")
-	if len(openid) < 1 || len(sessionKey) < 1 {
-		err = fmt.Errorf("%v", data)
-	}
+	ret = &Code2SessionReturn{}
+	err = json.Unmarshal([]byte(data), ret)
 	return
 }
 
@@ -212,7 +210,7 @@ func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, 
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", conf.Appid, conf.AppSecret, code)
+		data, err = util.HGet("%v/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
 		if err == nil {
 			break
 		}
@@ -251,9 +249,9 @@ func (c *Client) LoadBaseAccessToken(key string, cache bool) (ret *AccessTokenRe
 	if err != nil && err != redis.ErrNil {
 		return
 	}
-	now := util.Now() / 1000
+	now := util.Now()
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
-	if cache && now-ts < 6000 && len(vals[1]) > 0 {
+	if cache && now-ts*1000 < c.AccessTokenTimeout && len(vals[1]) > 0 {
 		ret = &AccessTokenReturn{
 			AccessToken: vals[1],
 			Code:        0,
@@ -263,7 +261,7 @@ func (c *Client) LoadBaseAccessToken(key string, cache bool) (ret *AccessTokenRe
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", conf.Appid, conf.AppSecret)
+		data, err = util.HGet("%v/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", c.WeixinAPIServer, conf.Appid, conf.AppSecret)
 		if err == nil {
 			break
 		}
@@ -299,7 +297,7 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoBac
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https://api.weixin.qq.com/sns/userinfo?access_token=%v&openid=%v&lang=zh_CN", accessToken, openid)
+		data, err = util.HGet("%v/sns/userinfo?access_token=%v&openid=%v&lang=zh_CN", c.WeixinAPIServer, accessToken, openid)
 		if err == nil {
 			break
 		}
@@ -328,7 +326,7 @@ func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketRet
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=%v&type=%v", accessToken, ticketType)
+		data, err = util.HGet("%v/cgi-bin/ticket/getticket?access_token=%v&type=%v", c.WeixinAPIServer, accessToken, ticketType)
 		if err == nil {
 			break
 		}
@@ -613,11 +611,11 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr,
 	appid = conf.Appid
 	mpAppid = conf.MpAppid
 	noncestr = util.UUID()
-	now := util.Now() / 1000
-	timestamp = fmt.Sprintf("%v", now)
+	now := util.Now()
+	timestamp = fmt.Sprintf("%v", now/1000)
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	ticket := ""
-	if now-ts < 6000 && len(vals[1]) > 0 {
+	if now-ts*1000 < c.AccessTokenTimeout && len(vals[1]) > 0 {
 		ticket = vals[1]
 	} else {
 		for i := 0; i < 2; i++ {
