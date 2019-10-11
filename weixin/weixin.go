@@ -437,14 +437,14 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 		return nil, err
 	}
 	var anyArgs = AnyArgs{}
-	err = xml.Unmarshal([]byte(res), &anyArgs)
+	err = xml.Unmarshal(res, &anyArgs)
 	if err != nil {
 		err = util.Err("Client.CreateRefundOrderV xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
-	if anyArgs["return_code"] != "SUCCESS" {
-		err = util.Err("Client.CreateRefundOrderV weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
-			string(bys), anyArgs["return_code"], anyArgs["return_msg"], anyArgs)
+	if anyArgs["return_code"] != "SUCCESS" || anyArgs["result_code"] != "SUCCESS" {
+		err = util.Err("Client.CreateRefundOrderV weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->\n%v",
+			string(bys), anyArgs["return_code"], anyArgs["return_msg"], string(res))
 		return nil, err
 	}
 	err = anyArgs.VerifySign(conf, anyArgs["sign"])
