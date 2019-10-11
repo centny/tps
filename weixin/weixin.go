@@ -65,7 +65,7 @@ func NewClient(host string, h Evh) *Client {
 		jsapiTicketLck:     sync.RWMutex{},
 		UniformSendQueue:   make(chan *UniformSendArgs, 10000),
 		AccessTokenTimeout: 6000 * 1000,
-		WeixinAPIServer:    "https://api.weixin.qq.com/",
+		WeixinAPIServer:    "https://api.weixin.qq.com",
 	}
 }
 
