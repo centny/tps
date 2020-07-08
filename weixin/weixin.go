@@ -17,19 +17,24 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/codingeasygo/util/converter"
+	"github.com/codingeasygo/util/uuid"
+	"github.com/codingeasygo/util/xhttp"
+	"github.com/codingeasygo/util/xmap"
+	"github.com/codingeasygo/web"
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/Centny/rediscache"
+	"github.com/Centny/tps/tools"
 
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/routing"
-	"github.com/Centny/gwf/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type Evh interface {
-	OnPayNotify(c *Client, hs *routing.HTTPSession, nativ *PayNotifyArgs) error
-	OnRefundNotify(c *Client, hs *routing.HTTPSession, nativ *RefundNotifyArgs) error
+	OnPayNotify(c *Client, hs *web.Session, nativ *PayNotifyArgs) error
+	OnRefundNotify(c *Client, hs *web.Session, nativ *RefundNotifyArgs) error
 }
 type Client struct {
 	UnifiedOrder string
@@ -104,7 +109,7 @@ func (c *Client) CreateRefundOrder(key, notify_url, out_trade_no, out_refund_no 
 	args.OutRefundNo = out_refund_no
 	args.TotalFee = total_fee
 	args.RefundFee = refund_fee
-	args.NonceStr = util.UUID()
+	args.NonceStr = uuid.New()
 	conf := c.Conf[key]
 	if conf == nil {
 		return nil, fmt.Errorf("conf not found by key(%v)", key)
@@ -119,7 +124,7 @@ func (c *Client) CreateOrderQr(key, notify_url, out_trade_no, body string, total
 	}
 	os.MkdirAll(c.Tmp, os.ModePerm)
 	var tmpf = filepath.Join(c.Tmp, "wx_"+out_trade_no+".png")
-	_, err = util.Exec2(fmt.Sprintf(c.CmdF, back["code_url"], tmpf))
+	_, err = tools.Exec(fmt.Sprintf(c.CmdF, back["code_url"], tmpf))
 	if err != nil {
 		return
 	}
@@ -139,8 +144,8 @@ func (c *Client) CreateAppOrder(key, notify_url, out_trade_no, body string, tota
 			Partnerid: conf.Mchid,
 			Prepayid:  back["prepay_id"],
 			Package:   "Sign=WXPay",
-			Noncestr:  strings.ToUpper(util.UUID()),
-			Timestamp: util.NowSec() / 1000,
+			Noncestr:  strings.ToUpper(uuid.New()),
+			Timestamp: time.Now().Local().UnixNano() / 1e6 / 1000,
 		}
 		args.SetSign(conf)
 	}
@@ -158,8 +163,8 @@ func (c *Client) CreateH5Order(key, openid, notify_url, out_trade_no, body strin
 			Appid:     conf.Appid,
 			SignType:  "MD5",
 			Package:   "prepay_id=" + back["prepay_id"],
-			NonceStr:  strings.ToUpper(util.UUID()),
-			TimeStamp: fmt.Sprintf("%v", util.NowSec()/1000),
+			NonceStr:  strings.ToUpper(uuid.New()),
+			TimeStamp: fmt.Sprintf("%v", time.Now().Local().UnixNano()/1e6/1000),
 		}
 		args.SetSign(conf)
 	}
@@ -187,13 +192,13 @@ func (c *Client) LoadJsCodeSession(key, code string) (ret *Code2SessionReturn, e
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("%v/sns/jscode2session?appid=%v&secret=%v&js_code=%v&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
+		data, err = xhttp.GetText("%v/sns/jscode2session?appid=%v&secret=%v&js_code=%v&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
 		if err == nil {
 			break
 		}
 	}
 	if err != nil {
-		log.W("Client load jscode2session fail with %v", err)
+		log.Warnf("Client load jscode2session fail with %v", err)
 		err = fmt.Errorf("load jscode2session")
 		return
 	}
@@ -210,13 +215,13 @@ func (c *Client) LoadUserAccessToken(key, code string) (ret *AccessTokenReturn, 
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("%v/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
+		data, err = xhttp.GetText("%v/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code", c.WeixinAPIServer, conf.Appid, conf.AppSecret, code)
 		if err == nil {
 			break
 		}
 	}
 	if err != nil {
-		log.W("Client load user access token fail with %v", err)
+		log.Warnf("Client load user access token fail with %v", err)
 		err = fmt.Errorf("load user access token")
 		return
 	}
@@ -249,25 +254,25 @@ func (c *Client) LoadBaseAccessToken(key string, cache bool) (ret *AccessTokenRe
 	if err != nil && err != redis.ErrNil {
 		return
 	}
-	now := util.Now()
+	now := time.Now().Local().UnixNano() / 1e6
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	if cache && now-ts*1000 < c.AccessTokenTimeout && len(vals[1]) > 0 {
 		ret = &AccessTokenReturn{
 			AccessToken: vals[1],
 			Code:        0,
 		}
-		log.D("Client load base acess token from cache with %v", ret.AccessToken)
+		log.Debugf("Client load base acess token from cache with %v", ret.AccessToken)
 		return
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("%v/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", c.WeixinAPIServer, conf.Appid, conf.AppSecret)
+		data, err = xhttp.GetText("%v/cgi-bin/token?grant_type=client_credential&appid=%v&secret=%v", c.WeixinAPIServer, conf.Appid, conf.AppSecret)
 		if err == nil {
 			break
 		}
 	}
 	if err != nil {
-		log.W("Client load base access token fail with %v", err)
+		log.Warnf("Client load base access token fail with %v", err)
 		err = fmt.Errorf("load base access token")
 		return
 	}
@@ -280,10 +285,10 @@ func (c *Client) LoadBaseAccessToken(key string, cache bool) (ret *AccessTokenRe
 		err = fmt.Errorf("errcode:%v,errmsg:%v", ret.Code, ret.Message)
 		return
 	}
-	log.D("Client require new base acess token success with %v", ret.AccessToken)
+	log.Debugf("Client require new base acess token success with %v", ret.AccessToken)
 	_, err = conn.Do(
 		"MSET",
-		fmt.Sprintf("base_token_%v_timestamp", key), util.Now()/1000,
+		fmt.Sprintf("base_token_%v_timestamp", key), time.Now().Local().UnixNano()/1e6/1000,
 		fmt.Sprintf("base_token_%v_value", key), ret.AccessToken,
 	)
 	return
@@ -297,13 +302,13 @@ func (c *Client) LoadUserinfo(key, accessToken, openid string) (ret *UserinfoBac
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("%v/sns/userinfo?access_token=%v&openid=%v&lang=zh_CN", c.WeixinAPIServer, accessToken, openid)
+		data, err = xhttp.GetText("%v/sns/userinfo?access_token=%v&openid=%v&lang=zh_CN", c.WeixinAPIServer, accessToken, openid)
 		if err == nil {
 			break
 		}
 	}
 	if err != nil {
-		log.W("Client load user info fail with %v", err)
+		log.Warnf("Client load user info fail with %v", err)
 		err = fmt.Errorf("load user fail")
 		return
 	}
@@ -326,13 +331,13 @@ func (c *Client) LoadTicket(key, ticketType, accessToken string) (ret *TicketRet
 	}
 	var data string
 	for i := 0; i < 5; i++ {
-		data, err = util.HGet("%v/cgi-bin/ticket/getticket?access_token=%v&type=%v", c.WeixinAPIServer, accessToken, ticketType)
+		data, err = xhttp.GetText("%v/cgi-bin/ticket/getticket?access_token=%v&type=%v", c.WeixinAPIServer, accessToken, ticketType)
 		if err == nil {
 			break
 		}
 	}
 	if err != nil {
-		log.W("Client load ticket fail with %v", err)
+		log.Warnf("Client load ticket fail with %v", err)
 		err = fmt.Errorf("load ticket fail")
 		return
 	}
@@ -346,33 +351,29 @@ func (c *Client) CreateOrderV(args *OrderArgs, conf *Conf) (AnyArgs, error) {
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
 	if err != nil {
-		err = util.Err("Client.CreateOrder  marshal fail with error(%v)", err)
+		err = fmt.Errorf("Client.CreateOrder  marshal fail with error(%v)", err)
 		return nil, err
 	}
 	slog("Client.CreateOrder(Weixin) do create order by data:\n%v", string(bys))
-	code, res, err := util.HPostN(c.UnifiedOrder, "application/xml", bytes.NewBuffer(bys))
+	res, err := xhttp.PostTypeText("application/xml", bytes.NewBuffer(bys), "%v", c.UnifiedOrder)
 	if err != nil {
-		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
-		return nil, err
-	}
-	if code != 200 {
-		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
+		err = fmt.Errorf("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
 		return nil, err
 	}
 	var ores = AnyArgs{}
 	err = xml.Unmarshal([]byte(res), &ores)
 	if err != nil {
-		err = util.Err("Client.CreateOrder xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateOrder xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
 	if ores["return_code"] != "SUCCESS" || ores["result_code"] != "SUCCESS" {
-		err = util.Err("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
-			string(bys), ores["return_code"], ores["return_msg"], util.S2Json(ores))
+		err = fmt.Errorf("Client.CreateOrder weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->%v",
+			string(bys), ores["return_code"], ores["return_msg"], converter.JSON(ores))
 		return nil, err
 	}
 	err = ores.VerifySign(conf, ores["sign"])
 	if err != nil {
-		err = util.Err("Client.CreateOrder verify sign with data(\n%v\n) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateOrder verify sign with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
 	return ores, err
@@ -383,27 +384,23 @@ func (c *Client) Query(args *OrderQueryArgs, conf *Conf) (AnyArgs, error) {
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
 	if err != nil {
-		err = util.Err("Client.CreateOrder  marshal fail with error(%v)", err)
+		err = fmt.Errorf("Client.CreateOrder  marshal fail with error(%v)", err)
 		return nil, err
 	}
-	code, res, err := util.HPostN(c.QueryOrder, "text/xml", bytes.NewBuffer(bys))
+	res, err := xhttp.PostTypeText("text/xml", bytes.NewBuffer(bys), "%v", c.QueryOrder)
 	if err != nil {
-		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
-		return nil, err
-	}
-	if code != 200 {
-		err = util.Err("Client.CreateOrder post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, code)
+		err = fmt.Errorf("Client.CreateOrder post wexin(%v) fail with error(%v)", c.UnifiedOrder, err)
 		return nil, err
 	}
 	var ores = AnyArgs{}
 	err = xml.Unmarshal([]byte(res), &ores)
 	if err != nil {
-		err = util.Err("Client.CreateOrder xml unmarshal with data(%v) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateOrder xml unmarshal with data(%v) fail with error(%v)", res, err)
 		return nil, err
 	}
 	err = ores.VerifySign(conf, ores["sign"])
 	if err != nil {
-		err = util.Err("Client.CreateOrder verify sign with data(%v) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateOrder verify sign with data(%v) fail with error(%v)", res, err)
 		return nil, err
 	}
 	return ores, err
@@ -414,7 +411,7 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 	args.SetSign(conf)
 	var bys, err = xml.Marshal(args)
 	if err != nil {
-		err = util.Err("Client.CreateRefundOrderV  marshal fail with error(%v)", err)
+		err = fmt.Errorf("Client.CreateRefundOrderV  marshal fail with error(%v)", err)
 		return nil, err
 	}
 	slog("Client.CreateRefundOrderV(Weixin) do create order by data:\n%v", string(bys))
@@ -433,35 +430,35 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 		return nil, err
 	}
 	if response.StatusCode != 200 {
-		err = util.Err("Client.CreateRefundOrderV post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, response.StatusCode)
+		err = fmt.Errorf("Client.CreateRefundOrderV post wexin(%v) fail with error(response code %v)", c.UnifiedOrder, response.StatusCode)
 		return nil, err
 	}
 	var anyArgs = AnyArgs{}
 	err = xml.Unmarshal(res, &anyArgs)
 	if err != nil {
-		err = util.Err("Client.CreateRefundOrderV xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateRefundOrderV xml unmarshal with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
 	if anyArgs["return_code"] != "SUCCESS" || anyArgs["result_code"] != "SUCCESS" {
-		err = util.Err("Client.CreateRefundOrderV weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->\n%v",
+		err = fmt.Errorf("Client.CreateRefundOrderV weixin creat order by data(\n%v\n) fail with code(%v)error(%v)->\n%v",
 			string(bys), anyArgs["return_code"], anyArgs["return_msg"], string(res))
 		return nil, err
 	}
 	err = anyArgs.VerifySign(conf, anyArgs["sign"])
 	if err != nil {
-		err = util.Err("Client.CreateRefundOrderV verify sign with data(\n%v\n) fail with error(%v)", res, err)
+		err = fmt.Errorf("Client.CreateRefundOrderV verify sign with data(\n%v\n) fail with error(%v)", res, err)
 		return nil, err
 	}
 	return anyArgs, err
 }
 
-func (c *Client) PayNotifyH(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) PayNotifyH(hs *web.Session) web.Result {
 	_, key := path.Split(hs.R.URL.Path)
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
 	}
-	log.D("Client.PayNotifyH(Weixin) receive notify on %v from %v", key, addr)
+	log.Debugf("Client.PayNotifyH(Weixin) receive notify on %v from %v", key, addr)
 	var res = &NotifyBack{}
 	defer func() {
 		bys, _ := xml.Marshal(res)
@@ -470,85 +467,100 @@ func (c *Client) PayNotifyH(hs *routing.HTTPSession) routing.HResult {
 	conf := c.Conf[key]
 	if conf == nil {
 		err := fmt.Errorf("conf not found by key(%v)", key)
-		log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)", err)
+		log.Errorf("Client.PayNotifyH(Weixin) notify fail with error(%v)", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	var anyArgs = AnyArgs{}
-	var bys, err = hs.UnmarshalX_v(&anyArgs)
+	var bys, err = hs.RecvXML(&anyArgs)
 	if err != nil {
-		log.E("Client.PayNotifyH(Weixin) %v", err)
+		log.Errorf("Client.PayNotifyH(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	err = anyArgs.VerifySign(conf, anyArgs["sign"])
 	if err != nil {
-		log.E("Client.PayNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
+		log.Errorf("Client.PayNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	var native = &PayNotifyArgs{}
 	err = xml.Unmarshal(bys, native)
 	if err != nil {
-		log.E("Client.PayNotifyH(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
+		log.Errorf("Client.PayNotifyH(Weixin) parse xml to object fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	slog("Client.PayNotifyH(Weixin) receive verified notify from address(%v), the data is:\n%v", addr, string(bys))
 	err = c.H.OnPayNotify(c, hs, native)
 	if err == nil {
 		res.ReturnCode = "SUCCESS"
 		res.ReturnMsg = "OK"
-		return routing.HRES_RETURN
+		return web.Return
 	}
-	log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+	log.Errorf("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
 	res.ReturnCode = "FAIL"
 	res.ReturnMsg = err.Error()
-	return routing.HRES_RETURN
+	return web.Return
 }
 
-func (c *Client) ManualPayNotifyH(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) ManualPayNotifyH(hs *web.Session) web.Result {
 	_, key := path.Split(hs.R.URL.Path)
 	conf := c.Conf[key]
 	if conf == nil {
 		err := fmt.Errorf("conf not found by key(%v)", key)
-		log.E("Client.PayNotifyH(Weixin) manual pay notify fail with error(%v)", err)
-		return hs.MsgResErr2(10, "arg-err", err)
+		log.Errorf("Client.PayNotifyH(Weixin) manual pay notify fail with error(%v)", err)
+		return hs.SendJSON(map[string]interface{}{
+			"code": 10,
+			"err":  err,
+		})
 	}
 	username, password, ok := hs.R.BasicAuth()
 	if !(len(conf.ManualUsername) > 0 && ok && username == conf.ManualUsername && password == conf.ManualPassword) {
 		err := fmt.Errorf("auth fail by key(%v)", key)
-		return hs.MsgResErr2(401, "auth-err", err)
+		return hs.SendJSON(map[string]interface{}{
+			"code": 401,
+			"err":  err,
+		})
 	}
 	var native = &PayNotifyArgs{}
-	bys, err := hs.UnmarshalX_v(native)
+	bys, err := hs.RecvXML(native)
 	if err != nil {
-		return hs.MsgResErr2(1, "arg-err", err)
+		return hs.SendJSON(map[string]interface{}{
+			"code": 1,
+			"err":  err,
+		})
 	}
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
 	}
-	log.W("WeixinClient recieve manual pay notify for out_trade_no(%v) from %v", native.OutTradeNo, addr)
+	log.Warnf("WeixinClient recieve manual pay notify for out_trade_no(%v) from %v", native.OutTradeNo, addr)
 	err = c.H.OnPayNotify(c, hs, native)
 	if err != nil {
-		log.E("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
-		return hs.MsgResErr2(2, "srv-err", err)
+		log.Errorf("Client.PayNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+		return hs.SendJSON(map[string]interface{}{
+			"code": 2,
+			"err":  err,
+		})
 	}
-	return hs.MsgRes("OK")
+	return hs.SendJSON(map[string]interface{}{
+		"code": 0,
+		"data": "ok",
+	})
 }
 
-func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) RefundNotifyH(hs *web.Session) web.Result {
 	_, key := path.Split(hs.R.URL.Path)
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
 		addr = hs.R.RemoteAddr
 	}
-	log.D("Client.RefundNotifyH(Weixin) receive notify on %v from %v", key, addr)
+	log.Debugf("Client.RefundNotifyH(Weixin) receive notify on %v from %v", key, addr)
 	var res = &NotifyBack{}
 	defer func() {
 		bys, _ := xml.Marshal(res)
@@ -557,37 +569,37 @@ func (c *Client) RefundNotifyH(hs *routing.HTTPSession) routing.HResult {
 	conf := c.Conf[key]
 	if conf == nil {
 		err := fmt.Errorf("conf not found by key(%v)", key)
-		log.E("Client.RefundNotifyH(Weixin) notify fail with error(%v)", err)
+		log.Errorf("Client.RefundNotifyH(Weixin) notify fail with error(%v)", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	var refundInfo = &RefundNotifyInfo{}
-	var bys, err = hs.UnmarshalX_v(&refundInfo)
+	var bys, err = hs.RecvXML(&refundInfo)
 	if err != nil {
-		log.E("Client.RefundNotifyH(Weixin) %v", err)
+		log.Errorf("Client.RefundNotifyH(Weixin) %v", err)
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	native, err := refundInfo.Decrypt(conf)
 	if err != nil {
-		log.E("Client.RefundNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
+		log.Errorf("Client.RefundNotifyH(Weixin) verify fail with error(%v)->\n%v", err, string(bys))
 		res.ReturnCode = "FAIL"
 		res.ReturnMsg = err.Error()
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	slog("Client.RefundNotifyH(Weixin) receive verify notify from address(%v), the data is:\n%v", addr, string(bys))
 	err = c.H.OnRefundNotify(c, hs, native)
 	if err == nil {
 		res.ReturnCode = "SUCCESS"
 		res.ReturnMsg = "OK"
-		return routing.HRES_RETURN
+		return web.Return
 	}
-	log.E("Client.RefundNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
+	log.Errorf("Client.RefundNotifyH(Weixin) notify fail with error(%v)->\n%v", err, string(bys))
 	res.ReturnCode = "FAIL"
 	res.ReturnMsg = err.Error()
-	return routing.HRES_RETURN
+	return web.Return
 }
 
 func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr, timestamp, signature string, err error) {
@@ -610,8 +622,8 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr,
 	}
 	appid = conf.Appid
 	mpAppid = conf.MpAppid
-	noncestr = util.UUID()
-	now := util.Now()
+	noncestr = uuid.New()
+	now := time.Now().Local().UnixNano() / 1e6
 	timestamp = fmt.Sprintf("%v", now/1000)
 	ts, _ := strconv.ParseInt(vals[0], 10, 64)
 	ticket := ""
@@ -633,7 +645,7 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr,
 				continue
 			}
 			if ticketVal.Code != 0 {
-				err = fmt.Errorf("ret %v", util.S2Json(ticketVal))
+				err = fmt.Errorf("ret %v", converter.JSON(ticketVal))
 				return
 			}
 			ticket = ticketVal.Ticket
@@ -650,39 +662,40 @@ func (c *Client) LoadJsapiSignature(key, turl string) (appid, mpAppid, noncestr,
 	}
 	murl, _ := url.QueryUnescape(turl)
 	data := "jsapi_ticket=" + ticket + "&noncestr=" + noncestr + "&timestamp=" + timestamp + "&url=" + murl
-	log.D("load jsapi signature by %v", data)
-	signature = util.Sha1_b([]byte(data))
+	log.Debugf("load jsapi signature by %v", data)
+	signature = tools.SHA1([]byte(data))
 	return
 }
 
 func (c *Client) MessageSend(key string, template *MpTemplateMessage) (err error) {
-	args := util.S2Json(template)
+	args := converter.JSON(template)
 	var accessToken *AccessTokenReturn
 	for i := 0; i < 2; i++ {
 		accessToken, err = c.LoadBaseAccessToken(key, i == 0)
 		if err != nil {
 			return
 		}
-		var data util.Map
+		var data xmap.Valuable
 		for i := 0; i < 5; i++ {
-			_, data, err = util.HPostN2(
-				"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token="+accessToken.AccessToken, "application/json;charset=utf-8",
-				bytes.NewBufferString(args),
+			data, err = xhttp.PostTypeMap(
+				"application/json;charset=utf-8", bytes.NewBufferString(args),
+				"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=%v",
+				accessToken.AccessToken,
 			)
 			if err == nil {
 				break
 			}
 		}
 		if err != nil {
-			log.W("Client uniform send fail with %v", err)
+			log.Warnf("Client uniform send fail with %v", err)
 			err = fmt.Errorf("uniform send fail")
 			return
 		}
-		if i == 0 && data.IntVal("errcode") == 40001 {
+		if i == 0 && data.Int("errcode") == 40001 {
 			continue
 		}
-		if data.IntVal("errcode") != 0 {
-			err = fmt.Errorf("ret %v, args \n%v", util.S2Json(data), args)
+		if data.Int("errcode") != 0 {
+			err = fmt.Errorf("ret %v, args \n%v", converter.JSON(data), args)
 		}
 		break
 	}
@@ -690,26 +703,26 @@ func (c *Client) MessageSend(key string, template *MpTemplateMessage) (err error
 }
 
 func (c *Client) UniformSendRunner() {
-	log.I("UniformSendRunner is starting...")
+	log.Infof("UniformSendRunner is starting...")
 	c.UniformSendRunning = true
 	for c.UniformSendRunning {
 		args := <-c.UniformSendQueue
 		err := c.MessageSend(args.Key, &args.Message)
 		if err != nil {
-			log.W("UniformSendRunner send message by key:%v,message:%v fail with %v", args.Key, util.S2Json(args.Message), err)
+			log.Warnf("UniformSendRunner send message by key:%v,message:%v fail with %v", args.Key, converter.JSON(args.Message), err)
 		} else {
-			log.D("UniformSendRunner send message by key:%v,message:%v is success", args.Key, util.S2Json(args.Message))
+			log.Debugf("UniformSendRunner send message by key:%v,message:%v is success", args.Key, converter.JSON(args.Message))
 		}
 	}
-	log.I("UniformSendRunner is stopped")
+	log.Infof("UniformSendRunner is stopped")
 }
 
-func (c *Client) Hand(pre string, mux *routing.SessionMux) {
+func (c *Client) Hand(pre string, mux *web.SessionMux) {
 	c.Pre = pre
-	mux.HFunc("^"+pre+"/notify/pay/[^/]*(\\?.*)?$", c.PayNotifyH)
-	mux.HFunc("^"+pre+"/manual/pay/[^/]*(\\?.*)?$", c.ManualPayNotifyH)
-	mux.HFunc("^"+pre+"/notify/refund/[^/]*(\\?.*)?$", c.RefundNotifyH)
-	mux.Handler("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
+	mux.HandleFunc("^"+pre+"/notify/pay/[^/]*(\\?.*)?$", c.PayNotifyH)
+	mux.HandleFunc("^"+pre+"/manual/pay/[^/]*(\\?.*)?$", c.ManualPayNotifyH)
+	mux.HandleFunc("^"+pre+"/notify/refund/[^/]*(\\?.*)?$", c.RefundNotifyH)
+	mux.HandleNormal("^"+pre+"/qr.*$", http.StripPrefix(pre+"/qr", http.FileServer(http.Dir(c.Tmp))))
 }
 
 func AesCbcDecrypt(key, encrypted, iv string) (decrypted string, err error) {

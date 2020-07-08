@@ -2,7 +2,6 @@ package weixin
 
 import (
 	"crypto/aes"
-	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -11,7 +10,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Centny/gwf/util"
+	"github.com/Centny/tps/tools"
+	"github.com/codingeasygo/util/uuid"
+
+	"github.com/codingeasygo/util/converter"
 )
 
 const (
@@ -68,13 +70,13 @@ type OrderArgs struct {
 }
 
 func (o *OrderArgs) SetDetail(goods []*Goods) {
-	o.Detail = util.S2Json(util.Map{
+	o.Detail = converter.JSON(map[string]interface{}{
 		"goods_detail": goods,
 	})
 }
 
 func (o *OrderArgs) SetSign(conf *Conf) {
-	o.NonceStr = strings.ToUpper(util.UUID())
+	o.NonceStr = strings.ToUpper(uuid.New())
 	o.Sign = conf.Md5SignV(o)
 }
 
@@ -171,7 +173,7 @@ func (p *PayNotifyArgs) VerifySign(conf *Conf, sign string) error {
 	if tsign == sign {
 		return nil
 	}
-	return util.Err("md5 verify fail")
+	return fmt.Errorf("md5 verify fail")
 }
 
 type RefundNotifyInfo struct {
@@ -199,9 +201,7 @@ func (r *RefundNotifyInfo) Decrypt(conf *Conf) (args *RefundNotifyArgs, err erro
 	if err != nil {
 		return
 	}
-	md5Hash := md5.New()
-	md5Hash.Write([]byte(conf.PaySecret))
-	key := fmt.Sprintf("%x", md5Hash.Sum(nil))
+	key := tools.MD5([]byte(conf.PaySecret))
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return

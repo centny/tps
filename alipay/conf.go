@@ -7,9 +7,10 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/util"
+	"github.com/Centny/tps/tools"
+	log "github.com/sirupsen/logrus"
 )
 
 type Conf struct {
@@ -29,7 +30,7 @@ func (c *Conf) Load(appid, partner, seller, md5, private, publish, alipay string
 	//
 	private_b, _ := pem.Decode([]byte(private))
 	if private_b == nil {
-		return util.Err("decode private key fail")
+		return fmt.Errorf("decode private key fail")
 	}
 	c.Private, err = x509.ParsePKCS1PrivateKey(private_b.Bytes)
 	if err != nil {
@@ -40,7 +41,7 @@ func (c *Conf) Load(appid, partner, seller, md5, private, publish, alipay string
 	if len(publish) > 0 {
 		publish_b, _ := pem.Decode([]byte(publish))
 		if publish_b == nil {
-			return util.Err("decode public key fail")
+			return fmt.Errorf("decode public key fail")
 		}
 		tmp, err = x509.ParsePKIXPublicKey(publish_b.Bytes)
 		if err != nil {
@@ -52,7 +53,7 @@ func (c *Conf) Load(appid, partner, seller, md5, private, publish, alipay string
 	//
 	alipay_b, _ := pem.Decode([]byte(alipay))
 	if alipay_b == nil {
-		return util.Err("decode alipay key fail")
+		return fmt.Errorf("decode alipay key fail")
 	}
 	tmp, err = x509.ParsePKIXPublicKey(alipay_b.Bytes)
 	if err != nil {
@@ -63,7 +64,7 @@ func (c *Conf) Load(appid, partner, seller, md5, private, publish, alipay string
 }
 
 func (c *Conf) Md5Sign(data string) string {
-	return util.Md5_b([]byte(data + c.MD5))
+	return tools.MD5([]byte(data + c.MD5))
 }
 
 func (c *Conf) ShaSign(data string) (string, error) {
@@ -81,7 +82,7 @@ func (c *Conf) Md5Verify(data, sign string) error {
 	if c.Md5Sign(data) == sign {
 		return nil
 	} else {
-		return util.Err("md5 verify fail")
+		return fmt.Errorf("md5 verify fail")
 	}
 }
 
@@ -102,7 +103,7 @@ func (c *Conf) Verify(data, sign, sign_type string) error {
 	case "RSA":
 		return c.AlipayVerify(data, sign)
 	default:
-		return util.Err("unkown verify sign type(%v)", sign_type)
+		return fmt.Errorf("unkown verify sign type(%v)", sign_type)
 	}
 }
 
@@ -110,6 +111,6 @@ var ShowLog = false
 
 func slog(format string, args ...interface{}) {
 	if ShowLog {
-		log.D_(1, format, args...)
+		log.Debugf(format, args...)
 	}
 }

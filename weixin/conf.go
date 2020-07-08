@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/util"
+	"github.com/Centny/tps/tools"
+	log "github.com/sirupsen/logrus"
 )
 
 type Conf struct {
@@ -24,7 +24,7 @@ type Conf struct {
 }
 
 func (c *Conf) Md5Sign(data string) string {
-	return strings.ToUpper(util.Md5_b([]byte(data + "&key=" + c.PaySecret)))
+	return strings.ToUpper(tools.MD5([]byte(data + "&key=" + c.PaySecret)))
 }
 
 func (c *Conf) Md5SignV(o interface{}) string {
@@ -67,7 +67,7 @@ func (c *Conf) Md5Verify(data, sign string) error {
 	if c.Md5Sign(data) == sign {
 		return nil
 	} else {
-		return util.Err("md5 verify fail")
+		return fmt.Errorf("md5 verify fail")
 	}
 }
 
@@ -75,6 +75,6 @@ var ShowLog = false
 
 func slog(format string, args ...interface{}) {
 	if ShowLog {
-		log.D_(1, format, args...)
+		log.Debugf(format, args...)
 	}
 }

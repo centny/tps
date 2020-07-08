@@ -1,22 +1,20 @@
 package weixin
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
-	"github.com/Centny/gwf/routing"
-	"github.com/Centny/gwf/util"
+	"github.com/codingeasygo/web"
 )
 
 type test_h struct {
 }
 
-func (t *test_h) OnPayNotify(c *Client, hs *routing.HTTPSession, native *PayNotifyArgs) error {
+func (t *test_h) OnPayNotify(c *Client, hs *web.Session, native *PayNotifyArgs) error {
 	return nil
 }
 
-func (t *test_h) OnRefundNotify(c *Client, hs *routing.HTTPSession, nativ *RefundNotifyArgs) error {
+func (t *test_h) OnRefundNotify(c *Client, hs *web.Session, nativ *RefundNotifyArgs) error {
 	return nil
 }
 
@@ -72,26 +70,26 @@ func TestWeixin(t *testing.T) {
 // 	fmt.Println(res, err)
 // }
 
-func TestXx(t *testing.T) {
-	var data = `
-<xml>
-   <appid>wx2421b1c4370ec43b</appid>
-   <attach>支付测试</attach>
-   <body>JSAPI支付测试</body>
-   <mch_id>10000100</mch_id>
-   <detail><![CDATA[{ "goods_detail":[ { "goods_id":"iphone6s_16G", "wxpay_goods_id":"1001", "goods_name":"iPhone6s 16G", "quantity":1, "price":528800, "goods_category":"123456", "body":"苹果手机" }, { "goods_id":"iphone6s_32G", "wxpay_goods_id":"1002", "goods_name":"iPhone6s 32G", "quantity":1, "price":608800, "goods_category":"123789", "body":"苹果手机" } ] }]]></detail>
-   <nonce_str>1add1a30ac87aa2db72f57a2375d8fec</nonce_str>
-   <notify_url>http://wxpay.weixin.qq.com/pub_v2/pay/notify.v2.php</notify_url>
-   <openid>oUpF8uMuAJO_M2pxb1Q9zNjWeS6o</openid>
-   <out_trade_no>1415659990</out_trade_no>
-   <spbill_create_ip>14.23.150.211</spbill_create_ip>
-   <total_fee>1</total_fee>
-   <trade_type>JSAPI</trade_type>
-   <sign>0CB01533B8C1EF103065174F50BCA001</sign>
-</xml>
-`
-	fmt.Println(util.HPostN("https://api.mch.weixin.qq.com/pay/unifiedorder", "application/xml", bytes.NewBufferString(data)))
-}
+// func TestXx(t *testing.T) {
+// 	var data = `
+// <xml>
+//    <appid>wx2421b1c4370ec43b</appid>
+//    <attach>支付测试</attach>
+//    <body>JSAPI支付测试</body>
+//    <mch_id>10000100</mch_id>
+//    <detail><![CDATA[{ "goods_detail":[ { "goods_id":"iphone6s_16G", "wxpay_goods_id":"1001", "goods_name":"iPhone6s 16G", "quantity":1, "price":528800, "goods_category":"123456", "body":"苹果手机" }, { "goods_id":"iphone6s_32G", "wxpay_goods_id":"1002", "goods_name":"iPhone6s 32G", "quantity":1, "price":608800, "goods_category":"123789", "body":"苹果手机" } ] }]]></detail>
+//    <nonce_str>1add1a30ac87aa2db72f57a2375d8fec</nonce_str>
+//    <notify_url>http://wxpay.weixin.qq.com/pub_v2/pay/notify.v2.php</notify_url>
+//    <openid>oUpF8uMuAJO_M2pxb1Q9zNjWeS6o</openid>
+//    <out_trade_no>1415659990</out_trade_no>
+//    <spbill_create_ip>14.23.150.211</spbill_create_ip>
+//    <total_fee>1</total_fee>
+//    <trade_type>JSAPI</trade_type>
+//    <sign>0CB01533B8C1EF103065174F50BCA001</sign>
+// </xml>
+// `
+// 	fmt.Println(util.HPostN("https://api.mch.weixin.qq.com/pay/unifiedorder", "application/xml", bytes.NewBufferString(data)))
+// }
 
 func TestAesCbcDecrypt(t *testing.T) {
 	var args = map[string]string{"encrypted": "k3ENa8TiNaLrS1R6R2H8qUo1WUDV3tkFpCz59wExTrkT0O6RvyL93AxVAmAatK/imSrxlxHrdVcajG7gRxwTPwvHQ2bNUbL1gfiW811B5qDvdbECZsq6OgDIrImygm5WbOiwGVb7rUkuDbp/+3z4uE4PEgcIUL6WdfSKiNTQC0CzLU1UdjlNzoJkYLIMRLM5NL/HGyt2IRnIdLZ4pqTjLoAQMMg9Ocx8rF/e/V51kwzc0TSAUOrRUBTESQZu/cUHRQKVpy+WzqZTZZh+S6K+JVsnn/QNIMTfKNEdnWnwYdBoEnMYzVjoiMNyDV3b8Bt+S5DPCyHei/aIFGmh8yAFbNno9X0KACvGg4E3YspaKbXITUPosLtMn/z61pzbmo+VM2Vep1CM3dhPtwvOo0MpUGN4Gj4tQj7R39YwW5hLo6KCoxjKJcQYu62gMFpkJ9cFLy0ROrKNl4Bq3pDqm8nFCClz2F9PtfTpZ4dMYQpuzC8=", "iv": "qvWg2ZYeYIZPfmwEXwtvuw==", "code": "023qdvW72z83vJ009YW723CwW72qdvWA"}

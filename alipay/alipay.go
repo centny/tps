@@ -6,15 +6,15 @@ import (
 	"path"
 	"time"
 
-	"github.com/Centny/gwf/util"
+	log "github.com/sirupsen/logrus"
 
-	"github.com/Centny/gwf/log"
-	"github.com/Centny/gwf/routing"
+	"github.com/codingeasygo/util/converter"
+	"github.com/codingeasygo/web"
 )
 
 type Evh interface {
-	OnReturn(c *Client, hs *routing.HTTPSession) routing.HResult
-	OnNotify(c *Client, hs *routing.HTTPSession) error
+	OnReturn(c *Client, hs *web.Session) web.Result
+	OnNotify(c *Client, hs *web.Session) error
 }
 type Client struct {
 	Gateway string
@@ -55,7 +55,7 @@ func (c *Client) CreateUrl(key, utype, notify_url, return_url, out_trade_no, sub
 		vals.Add("timestamp", time.Now().Format("2006-01-02 15:04:05"))
 		vals.Add("version", "1.0")
 		vals.Add("notify_url", notify_url)
-		vals.Add("biz_content", util.S2Json(util.Map{
+		vals.Add("biz_content", converter.JSON(map[string]interface{}{
 			"out_trade_no": out_trade_no,
 			"total_amount": fmt.Sprintf("%.02f", total_fee),
 			"subject":      subject,
@@ -113,14 +113,14 @@ func (c *Client) CreateUrl(key, utype, notify_url, return_url, out_trade_no, sub
 	return
 }
 
-func (c *Client) Return(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) Return(hs *web.Session) web.Result {
 	_, key := path.Split(hs.R.URL.Path)
 	conf := c.Conf[key]
 	if conf == nil {
-		log.E("Client.Return(Alipay) receive bad request by config not found by key(%v)", key)
+		log.Errorf("Client.Return(Alipay) receive bad request by config not found by key(%v)", key)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(fmt.Sprintf("config not found by key(%v)", key)))
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
@@ -138,21 +138,21 @@ func (c *Client) Return(hs *routing.HTTPSession) routing.HResult {
 		slog("Client.Return(Alipay) receive verify request from(%v) and call on return by args:\nsign_type=%v&sign=%v%v\n<-", addr, sign_type, sign, data)
 		return c.H.OnReturn(c, hs)
 	} else {
-		log.W("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
+		log.Warnf("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
-		return routing.HRES_RETURN
+		return web.Return
 	}
 }
 
-func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
+func (c *Client) Notify(hs *web.Session) web.Result {
 	_, key := path.Split(hs.R.URL.Path)
 	conf := c.Conf[key]
 	if conf == nil {
-		log.E("Client.Return(Alipay) receive bad request by config not found by key(%v)", key)
+		log.Errorf("Client.Return(Alipay) receive bad request by config not found by key(%v)", key)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(fmt.Sprintf("config not found by key(%v)", key)))
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	var addr = hs.R.Header.Get("X-Real-IP")
 	if len(addr) < 1 {
@@ -167,19 +167,19 @@ func (c *Client) Notify(hs *routing.HTTPSession) routing.HResult {
 	data, _ = url.QueryUnescape(data)
 	var err = conf.Verify(data, sign, sign_type)
 	if err != nil {
-		log.W("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
+		log.Warnf("Client.Notify(Alipay) recieve bad request from address(%v),err:%v->\nsign_type=%v&sign=%v&%v", addr, err, sign_type, sign, data)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
-		return routing.HRES_RETURN
+		return web.Return
 	}
 	slog("Client.Notify(Alipay) receive verify request from address(%v) by args:\nsign_type=%v&sign=%v&%v\n<-", addr, sign_type, sign, data)
 	err = c.H.OnNotify(c, hs)
 	if err == nil {
 		hs.W.Write([]byte("success"))
 	} else {
-		log.W("Client.Notify(Alipay) call on notify fail with error(%v)", err)
+		log.Warnf("Client.Notify(Alipay) call on notify fail with error(%v)", err)
 		hs.W.WriteHeader(400)
 		hs.W.Write([]byte(err.Error()))
 	}
-	return routing.HRES_RETURN
+	return web.Return
 }
