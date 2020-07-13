@@ -3,6 +3,8 @@ github.com/Centny/rediscache v0.0.0-20200707152004-c861f4b3fc69/go.mod h1:e9eNAU
 github.com/codingeasygo/util v0.0.0-20200706141926-d1053c73321c/go.mod h1:q4DRF2HY/Qt0qCCARM1OR0dke9XFkKtgr/POyT63crI=
 github.com/codingeasygo/util v0.0.0-20200708104857-318eea951764 h1:Zqzhhjp5+EghAASSbK2TqOmupPsrJIcdPpuHdrtX5Nk=
 github.com/codingeasygo/util v0.0.0-20200708104857-318eea951764/go.mod h1:q4DRF2HY/Qt0qCCARM1OR0dke9XFkKtgr/POyT63crI=
+github.com/codingeasygo/util v0.0.0-20200713041851-864f364bd051 h1:QmVm2XUhpnXbsTY0gPGW7uh60UIe43CPVMJOsngTGYI=
+github.com/codingeasygo/util v0.0.0-20200713041851-864f364bd051/go.mod h1:q4DRF2HY/Qt0qCCARM1OR0dke9XFkKtgr/POyT63crI=
 github.com/codingeasygo/web v0.0.0-20200706142504-94a680e5d913 h1:hf0V3BWz88NSINP9XCh+wgwDxZzgNasgs5PklGGVswM=
 github.com/codingeasygo/web v0.0.0-20200706142504-94a680e5d913/go.mod h1:gngFERpwmoldUJwKfRwmVDGxI8m4kpc1HSNsFHdy4VM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
