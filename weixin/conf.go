@@ -20,7 +20,7 @@ type Conf struct {
 	MpAppid        string
 	ManualUsername string
 	ManualPassword string
-	PayClient      *http.Client
+	ApiClient      *http.Client
 }
 
 func (c *Conf) Md5Sign(data string) string {
