@@ -102,7 +102,7 @@ type Goods struct {
 	GoodsId       string  `json:"goods_id"`
 	WxpayGoodsId  string  `json:"wxpay_goods_id"`
 	GoodsName     string  `json:"goods_name"`
-	GoodsNum      int     `json:"goods_name"`
+	GoodsNum      int     `json:"goods_num"`
 	Price         float64 `json:"price"`
 	GoodsCategory string  `json:"goods_category"`
 	Body          string  `json:"body"`

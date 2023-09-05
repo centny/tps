@@ -420,7 +420,7 @@ func (c *Client) CreateRefundOrderV(args *RefundArgs, conf *Conf) (AnyArgs, erro
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/xml")
-	response, err := conf.ApiClient.Do(req)
+	response, err := conf.PayClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
